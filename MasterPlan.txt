@@ -1,0 +1,352 @@
+光标指挥官 (Cursor Commander) - AI 辅助开发完全手册
+
+版本： v4.2 DirectReward (Web/Canvas/Robust)
+核心机制： 拼装战车 + 匀速无人机 + 全自动战斗 + 击杀直充
+用途： 本文档包含所有给 AI 的指令、数据字典及技术避坑指南。
+
+📚 第一部分：给 AI 的核心蓝图 (The Master Context)
+
+使用说明： 每次开启一个新的 AI 对话窗口时，必须先发送以下内容。
+
+指令：
+
+我们要开发一款名为《光标指挥官 (Cursor Commander)》的 HTML5 Canvas 游戏。请仔细阅读以下核心设计文档 (GDD)。如果理解了，请只回答“已读取存档”。
+
+【游戏概述】
+
+类型： 2D 横版卷轴 / 模拟经营 / 塔防 / 类吸血鬼幸存者
+
+核心体验： 玩家专注于拼装战车和光标采集，所有武器全自动攻击。
+
+【核心机制】
+
+移动逻辑： 载具固定在屏幕左侧 1/3，背景向左卷动。
+
+光标交互 (The Cursor)：
+
+物理实体： 光标代表“无人机”，无加速度，以固定速度飞向鼠标。
+
+功能： 悬停采集固定资源点；作为“光标引导类”武器的集火信号。
+
+拼装系统 (The Grid)：
+
+网格： 4x4 网格。坐标系严格区分： 屏幕像素 (Pixel) vs 网格索引 (Col/Row)。
+
+组件： 多格拼图（Polyomino）。组件被毁留下空洞。
+
+邻接加成： 特定组件（如增压器）会强化相邻组件。
+
+核心规则： 必须保护唯一的 CORE (核心) 组件，核心血量归零则 GameOver。
+
+全自动战斗 (Auto-Combat)：
+
+自动开火： 只要弹药充足，武器自动攻击。
+
+弹道管理： 必须使用对象池 (Object Pool) 管理子弹。
+
+资源循环 (Resource Cycle)：
+
+🔴 RedRes (弹药)：击杀敌人直接获得（Direct Deposit）。无掉落物，无需拾取。
+
+🟡 GoldRes (货币)：击杀敌人直接获得。
+
+🔵 BlueRes (建材)：地图上生成的固定矿点，需光标悬停采集。
+
+📖 第二部分：数据字典 (Data Dictionary)
+
+使用说明： 要求 AI 在写代码时，严格遵守以下变量命名，禁止自由发挥。
+
+类/对象
+
+字段名
+
+类型
+
+说明
+
+Component
+
+id
+
+String
+
+唯一ID (e.g., "basic_gun_1")
+
+
+
+gridShape
+
+Array
+
+相对坐标数组 [[0,0], [1,0]]
+
+
+
+type
+
+String
+
+"CORE", "WEAPON", "ARMOR", "BOOSTER"
+
+
+
+stats
+
+Object
+
+{ damage, cooldown, range, ammoCost, pattern }
+
+
+
+currentCooldown
+
+Number
+
+运行时计时器
+
+
+
+buffMultiplier
+
+Number
+
+默认为 1.0，由邻接计算得出
+
+Projectile
+
+active
+
+Boolean
+
+对象池标记
+
+
+
+position
+
+Vector2
+
+{x, y}
+
+
+
+velocity
+
+Vector2
+
+{x, y}
+
+Global
+
+resources
+
+Object
+
+{ red: 0, blue: 0, gold: 0 } (逻辑层允许浮点，UI层向下取整)
+
+
+
+gameState
+
+String
+
+"TRAVEL", "COMBAT", "SAFEHOUSE", "PAUSED"
+
+🛠️ 第三部分：分步开发指令集 (Development Roadmap)
+
+使用说明： 按顺序，一次复制一个模块发送给 AI。
+
+🔹 模块 1：无人机匀速运动 (Drone Physics)
+
+指令：
+当前任务： 实现“固定速度”的无人机光标。
+变量规范： position (Vector2), targetPos (Vector2), moveSpeed (const 500)。
+
+需求：
+
+Update 逻辑： 计算 vec = targetPos - position。若 vec.length > step，则移动 step；否则 position = targetPos（吸附）。
+
+Render 逻辑： 绘制圆圈代表无人机，绘制线条连接鼠标与无人机。
+
+调试： 在无人机位置显示当前坐标文本。
+
+请提供核心 Update 函数代码。
+
+🔹 模块 2：网格数据与邻接计算 (Grid & Buffs)
+
+指令：
+当前任务： 实现网格数据结构及邻接加成逻辑。
+
+需求：
+
+GridManager： 维护 grid[4][4]。实现 placeComponent(col, row, component)。
+
+坐标转换工具 (关键)：
+
+screenToGrid(mouseX_px, mouseY_px): 返回 {col, row}。
+
+gridToScreen(col, row): 返回 {x_px, y_px} (格子中心点)。
+
+邻接加成 (Adjacency)：
+
+实现 recalculateBuffs()。
+
+逻辑：遍历网格，若发现 type === "BOOSTER"，则查找其 上下左右 的组件，将其 buffMultiplier 设为 1.2 (攻速/伤害提升)。
+
+请提供 GridManager 类代码。
+
+🔹 模块 3：拼装交互 (Build UI)
+
+指令：
+当前任务： 实现组件的拖拽与吸附放置。
+
+需求：
+
+UI 区域： 画布底部 100px 为仓库区。
+
+状态机： 引入 DragState (IDLE, DRAGGING)。
+
+拖拽逻辑：
+
+mousedown (UI区) -> 暂停游戏 (gameState = PAUSED) -> 生成 tempComponent 跟随鼠标。
+
+mousemove -> 若在网格区，调用 screenToGrid 计算吸附位置。
+
+预览渲染： 绘制半透明组件。绿色=位置合法；红色=重叠或越界。
+
+mouseup -> 恢复之前游戏状态 -> 若合法，写入数据并扣除资源。
+
+请提供 Mouse Event 处理代码。
+
+🔹 模块 4：悬停采集 (Hover & Mine)
+
+指令：
+当前任务： 实现固定资源的采集机制。
+
+需求：
+
+判定： 使用 DroneCursor.position (非鼠标) 与地图上的 BlueRes 矿点 计算距离。
+
+UI 反馈： 距离 < 阈值时，在光标位置绘制 Arc 进度条。
+
+逻辑： 进度条 100% -> 销毁矿点 -> GlobalRes.Blue++。
+
+请提供 Update 判定代码。
+
+🔹 模块 5：子弹对象池 (Projectile Pool)
+
+指令：
+当前任务： 实现高性能子弹管理系统。
+
+需求：
+
+ProjectilePool 类：
+
+get(): 从池中取出一个非活跃子弹，重置状态，设为 active=true。
+
+release(p): 将子弹设为 active=false。
+
+ProjectileManager：
+
+update(): 仅更新 active 的子弹位置。
+
+draw(): 仅渲染 active 的子弹。
+
+边界检查：飞出屏幕自动 release。
+
+请提供这两个类的代码，严禁在运行时使用 new。
+
+🔹 模块 6：武器系统与索敌 (Weapon System)
+
+指令：
+当前任务： 实现全自动武器控制。
+
+需求：
+
+遍历： 遍历 Grid 中所有 type === "WEAPON" 的组件。
+
+冷却： currentCooldown -= deltaTime * buffMultiplier (应用邻接加成)。
+
+索敌与开火：
+
+若冷却完毕 && RedRes >= stats.ammoCost：
+
+根据 stats.pattern 寻找目标 (最近敌人 OR 无人机附近敌人)。
+
+从 ProjectilePool 获取子弹并发射。
+
+扣除 RedRes。
+
+请提供 WeaponSystem.update() 代码。
+
+🔹 模块 7：游戏主循环 (Main Loop)
+
+指令：
+当前任务： 串联游戏流程与击杀逻辑。
+
+需求：
+
+EnemyManager：
+
+简单的生怪逻辑（右侧生成，向左移动）。
+
+死亡逻辑 (Critical)：当敌人 HP <= 0 时，不生成任何掉落物。直接执行 resources.red += value 或 resources.gold += value。
+
+GameManager：
+
+状态机： TRAVEL (生怪) -> COMBAT (停止背景，双倍生怪) -> SAFEHOUSE (清理)。
+
+GameOver：检查 Grid 中 CORE 组件是否存在/存活。
+
+请提供主入口代码。
+
+📝 第四部分：开发日志模板 (DevLog)
+
+使用说明： 每次开发前，更新此日志，并将其发送给 AI。
+
+=== 光标指挥官开发状态 ===
+【当前版本】：v0.x
+【已完成模块】：
+- [ ] M1: 光标 (Fixed Speed)
+- [ ] M2: 网格 (Grid & Buffs)
+- [ ] M3: 拖拽 (UI - Pause Game)
+- [ ] M4: 采集 (Hover Mine)
+- [ ] M5: 子弹池 (Pool)
+- [ ] M6: 武器 (Auto-Fire)
+- [ ] M7: 循环 (Direct Reward)
+【核心字段约定】：
+- 资源：resources.red, resources.blue (Display: Math.floor)
+- 组件：shape, type, stats, buffMultiplier
+- 状态：TRAVEL, COMBAT, SAFEHOUSE, PAUSED
+【当前已知问题】：
+- (例如：子弹没有击中敌人)
+==========================
+
+
+⚠️ 第五部分：技术避坑指南 (Critical Pitfalls)
+
+在 Web Canvas 开发中，时刻提醒 AI 注意以下几点：
+
+坐标系命名强制规范 (Coordinate Naming Standard)：
+
+指令： “为了避免混淆，像素坐标变量必须以 _px 或 Pos 结尾 (如 targetX_px, mousePos)。网格索引必须使用 col/row 或以 _idx 结尾。严禁使用通用的 x, y 同时代表两种含义。”
+
+碰撞算法优化 (Collision Optimization)：
+
+指令： “检测距离时，必须使用距离平方 (distSquared) 比较，避免使用 Math.sqrt()。若同屏实体超过 100，后续需实现简单的空间划分 (Spatial Partitioning)。”
+
+资源数值处理 (Resource Math)：
+
+指令： “逻辑计算保持浮点数 (Float) 以支持 deltaTime 消耗，但在 UI 渲染文本时，必须使用 Math.floor() 向下取整，避免出现 10.9999。”
+
+DPI 适配 (Retina)：
+
+指令： “初始化 Canvas 时，请使用 window.devicePixelRatio 缩放宽高，防止画面模糊。”
+
+对象池强制执行：
+
+指令： “子弹和敌人必须使用对象池。如果我发现代码里有 new Projectile() 在 Update 循环中，我会要求重写。”
+
+Z-Index 冲突与暂停：
+
+指令： “拖拽组件时，务必将 gameState 设为 PAUSED，停止所有 Update 循环（光标、敌人、子弹），但保持 Render 循环（以便看到预览效果）。”

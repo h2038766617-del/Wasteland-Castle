@@ -11,7 +11,9 @@
 import Canvas from './core/Canvas.js';
 import DroneCursor from './entities/DroneCursor.js';
 import GridManager from './systems/GridManager.js';
+import Component from './entities/Component.js';
 import { CANVAS, DEBUG, PERFORMANCE } from './config/Constants.js';
+import { ComponentType } from './config/DataDictionary.js';
 
 /**
  * 游戏主类
@@ -19,7 +21,7 @@ import { CANVAS, DEBUG, PERFORMANCE } from './config/Constants.js';
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.3 - 网格管理系统');
+    console.log('版本: v0.4 - 组件系统');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -42,6 +44,9 @@ class Game {
     // 初始化网格管理器
     this.gridManager = new GridManager();
 
+    // 创建测试组件并放置到网格
+    this.createTestComponents();
+
     // 初始化无人机光标
     const centerX = this.canvas.getWidth() / 2;
     const centerY = this.canvas.getHeight() / 2;
@@ -54,6 +59,83 @@ class Game {
     this.updateDebugInfo();
 
     console.log('游戏初始化完成');
+  }
+
+  /**
+   * 创建测试组件
+   */
+  createTestComponents() {
+    // 创建核心组件（1x1，放在中心）
+    const core = new Component({
+      id: 'core_main',
+      type: ComponentType.CORE,
+      gridShape: [[0, 0]],
+      stats: {
+        hp: 500,
+        maxHp: 500
+      }
+    });
+    this.gridManager.placeComponent(core, 1, 1);
+
+    // 创建基础武器（1x1，放在核心右侧）
+    const weapon1 = new Component({
+      id: 'weapon_basic_1',
+      type: ComponentType.WEAPON,
+      gridShape: [[0, 0]],
+      stats: {
+        hp: 80,
+        maxHp: 80,
+        damage: 10,
+        cooldown: 0.5,
+        range: 300,
+        ammoCost: 1,
+        pattern: 'NEAREST'
+      }
+    });
+    this.gridManager.placeComponent(weapon1, 2, 1);
+
+    // 创建重型武器（1x2 水平，放在核心上方）
+    const weapon2 = new Component({
+      id: 'weapon_heavy_1',
+      type: ComponentType.WEAPON,
+      gridShape: [[0, 0], [1, 0]],
+      stats: {
+        hp: 120,
+        maxHp: 120,
+        damage: 50,
+        cooldown: 2.0,
+        range: 400,
+        ammoCost: 5,
+        pattern: 'NEAREST'
+      }
+    });
+    this.gridManager.placeComponent(weapon2, 0, 0);
+
+    // 创建装甲（1x1，放在核心下方）
+    const armor = new Component({
+      id: 'armor_plate_1',
+      type: ComponentType.ARMOR,
+      gridShape: [[0, 0]],
+      stats: {
+        hp: 200,
+        maxHp: 200
+      }
+    });
+    this.gridManager.placeComponent(armor, 1, 2);
+
+    // 创建增压器（1x1，放在核心左侧）
+    const booster = new Component({
+      id: 'booster_1',
+      type: ComponentType.BOOSTER,
+      gridShape: [[0, 0]],
+      stats: {
+        hp: 50,
+        maxHp: 50
+      }
+    });
+    this.gridManager.placeComponent(booster, 0, 1);
+
+    console.log(`已放置 ${this.gridManager.getAllComponents().length} 个测试组件`);
   }
 
   /**
@@ -246,7 +328,7 @@ class Game {
     ctx.fillStyle = '#00FFFF';
     ctx.font = '32px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('光标指挥官 - 网格系统', width / 2, 40);
+    ctx.fillText('光标指挥官 - 组件测试', width / 2, 40);
 
     // 绘制提示文字
     ctx.fillStyle = '#666666';
@@ -256,7 +338,7 @@ class Game {
 
     // 绘制版本信息
     ctx.textAlign = 'right';
-    ctx.fillText('v0.3', width - 20, height - 20);
+    ctx.fillText('v0.4', width - 20, height - 20);
 
     ctx.restore();
   }

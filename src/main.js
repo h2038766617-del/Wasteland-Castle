@@ -10,6 +10,7 @@
 
 import Canvas from './core/Canvas.js';
 import DroneCursor from './entities/DroneCursor.js';
+import GridManager from './systems/GridManager.js';
 import { CANVAS, DEBUG, PERFORMANCE } from './config/Constants.js';
 
 /**
@@ -18,7 +19,7 @@ import { CANVAS, DEBUG, PERFORMANCE } from './config/Constants.js';
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.2 - 无人机光标系统');
+    console.log('版本: v0.3 - 网格管理系统');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -37,6 +38,9 @@ class Game {
     // 游戏状态
     this.isRunning = false;
     this.isPaused = false;
+
+    // 初始化网格管理器
+    this.gridManager = new GridManager();
 
     // 初始化无人机光标
     const centerX = this.canvas.getWidth() / 2;
@@ -180,13 +184,14 @@ class Game {
 
     // TODO: 在这里渲染所有游戏对象
     // - 背景
-    // - 网格
-    // - 组件
     // - 敌人
     // - 子弹
 
     // 绘制背景网格（用于坐标参考）
     this.renderBackgroundGrid();
+
+    // 渲染游戏网格和组件
+    this.gridManager.render(this.ctx);
 
     // 渲染无人机光标
     this.droneCursor.render(this.ctx);
@@ -241,7 +246,7 @@ class Game {
     ctx.fillStyle = '#00FFFF';
     ctx.font = '32px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('光标指挥官 - 无人机测试', width / 2, 40);
+    ctx.fillText('光标指挥官 - 网格系统', width / 2, 40);
 
     // 绘制提示文字
     ctx.fillStyle = '#666666';
@@ -251,7 +256,7 @@ class Game {
 
     // 绘制版本信息
     ctx.textAlign = 'right';
-    ctx.fillText('v0.2', width - 20, height - 20);
+    ctx.fillText('v0.3', width - 20, height - 20);
 
     ctx.restore();
   }

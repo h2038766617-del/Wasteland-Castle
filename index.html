@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>光标指挥官 (Cursor Commander)</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      overflow: hidden;
+      background-color: #000000;
+      font-family: 'Courier New', monospace;
+    }
+
+    #gameCanvas {
+      display: block;
+      background-color: #0a0a0a;
+      cursor: none; /* 隐藏系统光标，使用自定义光标 */
+    }
+
+    /* 加载界面 */
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #0a0a0a;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #00FFFF;
+      z-index: 1000;
+    }
+
+    #loading h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+      text-shadow: 0 0 10px #00FFFF;
+    }
+
+    #loading p {
+      font-size: 18px;
+      opacity: 0.7;
+    }
+
+    #loading.hidden {
+      display: none;
+    }
+
+    /* 调试信息 */
+    #debug {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: #00FF00;
+      padding: 10px;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+      border: 1px solid #00FF00;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    #debug.hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- 加载界面 -->
+  <div id="loading">
+    <h1>光标指挥官</h1>
+    <p>CURSOR COMMANDER</p>
+    <p style="margin-top: 20px;">加载中...</p>
+  </div>
+
+  <!-- 游戏 Canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- 调试信息 -->
+  <div id="debug" class="hidden">
+    <div>FPS: <span id="fps">0</span></div>
+    <div>Canvas: <span id="canvasSize">0x0</span></div>
+    <div>Mouse: <span id="mousePos">0, 0</span></div>
+    <div>State: <span id="gameState">INIT</span></div>
+  </div>
+
+  <!-- 主脚本 (ES6 Module) -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

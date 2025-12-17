@@ -9,6 +9,7 @@
  */
 
 import Canvas from './core/Canvas.js';
+import DroneCursor from './entities/DroneCursor.js';
 import { CANVAS, DEBUG, PERFORMANCE } from './config/Constants.js';
 
 /**
@@ -17,7 +18,7 @@ import { CANVAS, DEBUG, PERFORMANCE } from './config/Constants.js';
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.1 - Canvas 初始化测试');
+    console.log('版本: v0.2 - 无人机光标系统');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -36,6 +37,11 @@ class Game {
     // 游戏状态
     this.isRunning = false;
     this.isPaused = false;
+
+    // 初始化无人机光标
+    const centerX = this.canvas.getWidth() / 2;
+    const centerY = this.canvas.getHeight() / 2;
+    this.droneCursor = new DroneCursor(centerX, centerY);
 
     // 设置输入监听
     this.setupInput();
@@ -154,8 +160,10 @@ class Game {
    * @param {number} deltaTime - 时间增量（秒）
    */
   update(deltaTime) {
-    // TODO: 在这里更新所有游戏系统
-    // - 无人机光标
+    // 更新无人机光标
+    this.droneCursor.update(deltaTime, this.mousePos);
+
+    // TODO: 在这里更新其他游戏系统
     // - 武器系统
     // - 子弹
     // - 敌人
@@ -176,68 +184,75 @@ class Game {
     // - 组件
     // - 敌人
     // - 子弹
-    // - 无人机光标
-    // - UI
 
-    // 临时测试：绘制一些内容
-    this.renderTest();
+    // 绘制背景网格（用于坐标参考）
+    this.renderBackgroundGrid();
+
+    // 渲染无人机光标
+    this.droneCursor.render(this.ctx);
+
+    // 渲染 UI 提示
+    this.renderUI();
   }
 
   /**
-   * 测试渲染（临时）
+   * 渲染背景网格（用于坐标参考）
    */
-  renderTest() {
+  renderBackgroundGrid() {
     const ctx = this.ctx;
     const width = this.canvas.getWidth();
     const height = this.canvas.getHeight();
 
-    // 绘制标题
     ctx.save();
-    ctx.fillStyle = '#00FFFF';
-    ctx.font = '48px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('光标指挥官', width / 2, height / 2 - 50);
-
-    ctx.font = '24px monospace';
-    ctx.fillStyle = '#888888';
-    ctx.fillText('Cursor Commander', width / 2, height / 2);
-
-    ctx.font = '16px monospace';
-    ctx.fillStyle = '#666666';
-    ctx.fillText('Canvas 初始化成功', width / 2, height / 2 + 40);
-    ctx.fillText('DPI: ' + this.canvas.getDPR().toFixed(2), width / 2, height / 2 + 65);
-    ctx.fillText(`分辨率: ${width}x${height}`, width / 2, height / 2 + 90);
-    ctx.restore();
-
-    // 绘制鼠标位置指示器
-    this.canvas.drawCircle(this.mousePos.x, this.mousePos.y, 20, '#00FFFF', false);
-    this.canvas.drawCircle(this.mousePos.x, this.mousePos.y, 5, '#00FFFF', true);
-
-    // 绘制网格示意（用于测试坐标系）
-    ctx.save();
-    ctx.strokeStyle = '#333333';
+    ctx.strokeStyle = '#1a1a1a';
     ctx.lineWidth = 1;
     const gridSpacing = 50;
+
+    // 绘制垂直线
     for (let x = 0; x < width; x += gridSpacing) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, height);
       ctx.stroke();
     }
+
+    // 绘制水平线
     for (let y = 0; y < height; y += gridSpacing) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(width, y);
       ctx.stroke();
     }
+
     ctx.restore();
+  }
+
+  /**
+   * 渲染 UI 提示
+   */
+  renderUI() {
+    const ctx = this.ctx;
+    const width = this.canvas.getWidth();
+    const height = this.canvas.getHeight();
+
+    ctx.save();
+
+    // 绘制标题
+    ctx.fillStyle = '#00FFFF';
+    ctx.font = '32px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('光标指挥官 - 无人机测试', width / 2, 40);
 
     // 绘制提示文字
-    ctx.save();
-    ctx.fillStyle = '#00FFFF';
+    ctx.fillStyle = '#666666';
     ctx.font = '14px monospace';
     ctx.textAlign = 'left';
     ctx.fillText('[空格] 暂停  [D] 调试信息  [R] 重启', 20, height - 20);
+
+    // 绘制版本信息
+    ctx.textAlign = 'right';
+    ctx.fillText('v0.2', width - 20, height - 20);
+
     ctx.restore();
   }
 

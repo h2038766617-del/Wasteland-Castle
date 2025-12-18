@@ -40,6 +40,7 @@ class Game {
     // 游戏状态
     this.isRunning = false;
     this.isPaused = false;
+    this.animationFrameId = null; // 用于追踪动画帧ID
 
     // 初始化网格管理器
     this.gridManager = new GridManager();
@@ -58,7 +59,9 @@ class Game {
     // 更新调试信息
     this.updateDebugInfo();
 
-    console.log('游戏初始化完成');
+    if (DEBUG.SHOW_FPS) {
+      console.log('游戏初始化完成');
+    }
   }
 
   /**
@@ -135,7 +138,9 @@ class Game {
     });
     this.gridManager.placeComponent(booster, 0, 1);
 
-    console.log(`已放置 ${this.gridManager.getAllComponents().length} 个测试组件`);
+    if (DEBUG.SHOW_FPS) {
+      console.log(`已放置 ${this.gridManager.getAllComponents().length} 个测试组件`);
+    }
   }
 
   /**
@@ -172,15 +177,22 @@ class Game {
       }
     });
 
-    console.log('输入系统已设置');
-    console.log('快捷键: [空格] 暂停  [D] 调试信息  [R] 重启');
+    if (DEBUG.SHOW_FPS) {
+      console.log('输入系统已设置');
+      console.log('快捷键: [空格] 暂停  [D] 调试信息  [R] 重启');
+    }
   }
 
   /**
    * 启动游戏
    */
   start() {
-    console.log('游戏启动中...');
+    // 防止重复启动
+    if (this.isRunning) {
+      console.warn('游戏已经在运行中，忽略重复启动请求');
+      return;
+    }
+
     this.isRunning = true;
 
     // 隐藏加载界面
@@ -195,12 +207,23 @@ class Game {
       if (debugElement) {
         debugElement.classList.remove('hidden');
       }
+      console.log('游戏已启动');
     }
 
     // 启动游戏循环
-    requestAnimationFrame((time) => this.gameLoop(time));
+    this.animationFrameId = requestAnimationFrame((time) => this.gameLoop(time));
+  }
 
-    console.log('游戏已启动');
+  /**
+   * 停止游戏循环
+   */
+  stop() {
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+    this.isRunning = false;
+    console.log('游戏已停止');
   }
 
   /**
@@ -208,8 +231,13 @@ class Game {
    * @param {number} currentTime - 当前时间戳（毫秒）
    */
   gameLoop(currentTime) {
+    // 检查游戏是否应该继续运行
+    if (!this.isRunning) {
+      return;
+    }
+
     // 继续循环
-    requestAnimationFrame((time) => this.gameLoop(time));
+    this.animationFrameId = requestAnimationFrame((time) => this.gameLoop(time));
 
     // 计算 deltaTime（秒）
     if (this.lastTime === 0) {
@@ -381,7 +409,9 @@ class Game {
    */
   togglePause() {
     this.isPaused = !this.isPaused;
-    console.log(this.isPaused ? '游戏已暂停' : '游戏继续');
+    if (DEBUG.SHOW_FPS) {
+      console.log(this.isPaused ? '游戏已暂停' : '游戏继续');
+    }
     this.updateDebugInfo();
   }
 
@@ -399,17 +429,33 @@ class Game {
    * 重启游戏
    */
   restart() {
-    console.log('重启游戏...');
-    // TODO: 重置所有游戏状态
+    if (DEBUG.SHOW_FPS) {
+      console.log('重启游戏...');
+    }
+
+    // 停止当前循环
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+
+    // 重置游戏状态
+    this.lastTime = 0;
+    this.deltaTime = 0;
+    this.accumulatedTime = 0;
+    this.frameCount = 0;
+    this.fps = 0;
     this.isPaused = false;
+    this.isRunning = false;
+
+    // 重新启动游戏
+    this.start();
     this.updateDebugInfo();
   }
 }
 
 // 等待 DOM 加载完成后启动游戏
 window.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM 加载完成');
-
   // 创建游戏实例
   const game = new Game();
 
@@ -418,5 +464,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // 将游戏实例暴露到全局（方便调试）
   window.game = game;
-  console.log('游戏实例已暴露到 window.game');
+
+  if (DEBUG.SHOW_FPS) {
+    console.log('游戏实例已暴露到 window.game');
+  }
 });

@@ -8,6 +8,8 @@
  * - 协调各个系统
  */
 
+console.log('main.js 开始加载...');
+
 import Canvas from './core/Canvas.js';
 import DroneCursor from './entities/DroneCursor.js';
 import GridManager from './systems/GridManager.js';
@@ -22,6 +24,8 @@ import Enemy from './entities/Enemy.js';
 import * as Vector2 from './utils/Vector2.js';
 import { CANVAS, DEBUG, PERFORMANCE } from './config/Constants.js';
 import { ComponentType } from './config/DataDictionary.js';
+
+console.log('main.js 所有模块导入完成');
 
 /**
  * 游戏主类
@@ -525,13 +529,32 @@ class Game {
 window.addEventListener('DOMContentLoaded', () => {
   console.log('DOM 加载完成');
 
-  // 创建游戏实例
-  const game = new Game();
+  try {
+    console.log('开始创建游戏实例...');
+    // 创建游戏实例
+    const game = new Game();
+    console.log('游戏实例创建成功');
 
-  // 启动游戏
-  game.start();
+    // 启动游戏
+    console.log('调用 game.start()...');
+    game.start();
 
-  // 将游戏实例暴露到全局（方便调试）
-  window.game = game;
-  console.log('游戏实例已暴露到 window.game');
+    // 将游戏实例暴露到全局（方便调试）
+    window.game = game;
+    console.log('游戏实例已暴露到 window.game');
+  } catch (error) {
+    console.error('=== 游戏初始化失败 ===');
+    console.error(error);
+
+    // 显示错误在加载界面
+    const loading = document.getElementById('loading');
+    if (loading) {
+      loading.innerHTML = `
+        <h1 style="color: #FF0000;">游戏初始化失败</h1>
+        <p style="color: #FFFF00; margin-top: 20px;">请打开浏览器控制台查看详细错误信息</p>
+        <p style="color: #888; margin-top: 10px; font-size: 14px;">${error.message}</p>
+        <p style="color: #666; margin-top: 5px; font-size: 12px;">${error.stack ? error.stack.split('\n')[1] : ''}</p>
+      `;
+    }
+  }
 });

@@ -1,70 +1,69 @@
 @echo off
-chcp 65001 >nul
 cls
 echo ========================================
-echo   环境检查工具
+echo   Environment Check Tool
 echo ========================================
 echo.
 
-echo 正在检查可用的服务器工具...
+echo Checking available server tools...
 echo.
 echo ----------------------------------------
 
 echo [Python]
 where python >nul 2>nul
-if %errorlevel% == 0 (
-    echo ✓ 已安装
+if %errorlevel% equ 0 (
+    echo [OK] Installed
     python --version 2>nul
 ) else (
-    echo × 未安装
+    echo [--] Not installed
 )
 echo.
 
-echo [py 命令]
+echo [py command]
 where py >nul 2>nul
-if %errorlevel% == 0 (
-    echo ✓ 已安装
+if %errorlevel% equ 0 (
+    echo [OK] Installed
     py --version 2>nul
 ) else (
-    echo × 未安装
+    echo [--] Not installed
 )
 echo.
 
 echo [Node.js]
 where node >nul 2>nul
-if %errorlevel% == 0 (
-    echo ✓ 已安装
+if %errorlevel% equ 0 (
+    echo [OK] Installed
     node --version 2>nul
 ) else (
-    echo × 未安装
+    echo [--] Not installed
 )
 echo.
 
 echo [npm]
 where npm >nul 2>nul
-if %errorlevel% == 0 (
-    echo ✓ 已安装
+if %errorlevel% equ 0 (
+    echo [OK] Installed
     npm --version 2>nul
 ) else (
-    echo × 未安装
+    echo [--] Not installed
 )
 echo.
 
 echo [npx]
 where npx >nul 2>nul
-if %errorlevel% == 0 (
-    echo ✓ 已安装
+if %errorlevel% equ 0 (
+    echo [OK] Installed
 ) else (
-    echo × 未安装
+    echo [--] Not installed
 )
 echo.
 
 echo ----------------------------------------
 echo.
-echo 建议：
-echo   如果都没安装，推荐使用 VS Code + Live Server
-echo   这是最简单的方式，无需安装 Python 或 Node.js
+echo Recommendation:
+echo   If nothing is installed, use VS Code + Live Server
+echo   This is the easiest way, no Python or Node.js needed
 echo.
-echo   详细说明请查看：运行指南.txt
+echo   See: README_How_To_Run.txt for details
 echo.
 pause

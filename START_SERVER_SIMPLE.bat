@@ -1,81 +1,78 @@
 @echo off
-chcp 65001 >nul
 cls
 echo ========================================
-echo   光标指挥官 - 游戏服务器启动
+echo   Cursor Commander - Server Startup
 echo ========================================
 echo.
 
 cd /d "%~dp0"
 
-echo [1/3] 尝试 Python...
+echo [1/3] Checking Python...
 where python >nul 2>nul
-if %errorlevel% == 0 (
-    echo ✓ 找到 Python
+if %errorlevel% equ 0 (
+    echo [OK] Python found
     echo.
-    echo 启动服务器在端口 8000...
-    echo 请在浏览器访问: http://localhost:8000
+    echo Starting server on port 8000...
     echo.
-    echo [按 Ctrl+C 停止服务器]
+    echo Open in browser: http://localhost:8000
+    echo.
+    echo Press Ctrl+C to stop
     echo.
     python -m http.server 8000
     exit /b
 )
-
-echo × Python 未找到
+echo [--] Python not found
 echo.
-echo [2/3] 尝试 py 命令...
+
+echo [2/3] Checking py command...
 where py >nul 2>nul
-if %errorlevel% == 0 (
-    echo ✓ 找到 py
+if %errorlevel% equ 0 (
+    echo [OK] py found
     echo.
-    echo 启动服务器在端口 8000...
-    echo 请在浏览器访问: http://localhost:8000
+    echo Starting server on port 8000...
     echo.
-    echo [按 Ctrl+C 停止服务器]
+    echo Open in browser: http://localhost:8000
+    echo.
+    echo Press Ctrl+C to stop
     echo.
     py -m http.server 8000
     exit /b
 )
-
-echo × py 命令未找到
+echo [--] py not found
 echo.
-echo [3/3] 尝试 Node.js...
+
+echo [3/3] Checking Node.js...
 where node >nul 2>nul
-if %errorlevel% == 0 (
-    where npx >nul 2>nul
-    if %errorlevel% == 0 (
-        echo ✓ 找到 Node.js
-        echo.
-        echo 启动服务器...
-        echo 请查看下方显示的访问地址
-        echo.
-        echo [按 Ctrl+C 停止服务器]
-        echo.
-        npx -y http-server -p 8000
-        exit /b
-    )
+if %errorlevel% equ 0 (
+    echo [OK] Node.js found
+    echo.
+    echo Starting server on port 8000...
+    echo.
+    echo Press Ctrl+C to stop
+    echo.
+    call npx -y http-server -p 8000
+    exit /b
 )
+echo [--] Node.js not found
+echo.
 
-echo × Node.js 未找到
-echo.
 echo ========================================
-echo   未找到可用的服务器工具！
+echo   ERROR: No server tool found
 echo ========================================
 echo.
-echo 请选择以下任一方式：
+echo Please install one of these:
 echo.
-echo 方式 1：安装 Python
-echo   下载地址: https://www.python.org/downloads/
-echo   安装时勾选 "Add Python to PATH"
+echo Option 1: Install Python
+echo   URL: https://www.python.org/downloads/
+echo   ! Check "Add Python to PATH" during install
 echo.
-echo 方式 2：使用 VS Code
-echo   1. 安装 VS Code: https://code.visualstudio.com/
-echo   2. 安装 Live Server 扩展
-echo   3. 右键 index.html - Open with Live Server
+echo Option 2: Use VS Code + Live Server
+echo   1. Install VS Code: https://code.visualstudio.com/
+echo   2. Install "Live Server" extension
+echo   3. Right-click index.html - Open with Live Server
 echo.
-echo 方式 3：安装 Node.js
-echo   下载地址: https://nodejs.org/
+echo Option 3: Install Node.js
+echo   URL: https://nodejs.org/
 echo.
 echo ========================================
 echo.

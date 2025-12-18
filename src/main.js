@@ -14,9 +14,11 @@ import GridManager from './systems/GridManager.js';
 import { BuffSystem } from './systems/BuffSystem.js';
 import { WeaponSystem } from './systems/WeaponSystem.js';
 import { CollisionSystem } from './systems/CollisionSystem.js';
+import { EnemySystem } from './systems/EnemySystem.js';
 import ObjectPool from './systems/ObjectPool.js';
 import Component from './entities/Component.js';
 import Projectile from './entities/Projectile.js';
+import Enemy from './entities/Enemy.js';
 import * as Vector2 from './utils/Vector2.js';
 import { CANVAS, DEBUG, PERFORMANCE } from './config/Constants.js';
 import { ComponentType } from './config/DataDictionary.js';
@@ -27,7 +29,7 @@ import { ComponentType } from './config/DataDictionary.js';
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.7 - 碰撞检测系统');
+    console.log('版本: v0.8 - 敌人系统与 AI');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -79,9 +81,13 @@ class Game {
     this.collisionSystem = new CollisionSystem();
     console.log('碰撞检测系统已初始化');
 
-    // 创建测试敌人（临时，用于测试武器发射）
-    this.enemies = [];
-    this.createTestEnemies();
+    // 初始化敌人系统
+    this.enemySystem = new EnemySystem(
+      this.gridManager,
+      this.canvas.getWidth(),
+      this.canvas.getHeight()
+    );
+    console.log('敌人系统已初始化');
 
     // 初始化无人机光标
     const centerX = this.canvas.getWidth() / 2;
@@ -172,59 +178,6 @@ class Game {
     this.gridManager.placeComponent(booster, 0, 1);
 
     console.log(`已放置 ${this.gridManager.getAllComponents().length} 个测试组件`);
-  }
-
-  /**
-   * 创建测试敌人
-   */
-  createTestEnemies() {
-    // 创建几个简单的测试敌人（手动管理，未使用对象池）
-    const centerX = this.canvas.getWidth() / 2;
-    const centerY = this.canvas.getHeight() / 2;
-
-    // 敌人1: 在屏幕右侧缓慢移动
-    this.enemies.push({
-      active: true,
-      type: 'basic_grunt',
-      position: { x: centerX + 300, y: centerY - 100 },
-      velocity: { x: -20, y: 10 },
-      hp: 50,
-      maxHp: 50,
-      damage: 10,
-      moveSpeed: 30,
-      rewardRed: 5,
-      rewardGold: 1
-    });
-
-    // 敌人2: 在屏幕右上方
-    this.enemies.push({
-      active: true,
-      type: 'basic_grunt',
-      position: { x: centerX + 200, y: centerY - 200 },
-      velocity: { x: -15, y: 20 },
-      hp: 50,
-      maxHp: 50,
-      damage: 10,
-      moveSpeed: 30,
-      rewardRed: 5,
-      rewardGold: 1
-    });
-
-    // 敌人3: 在屏幕右下方
-    this.enemies.push({
-      active: true,
-      type: 'basic_grunt',
-      position: { x: centerX + 250, y: centerY + 100 },
-      velocity: { x: -25, y: -15 },
-      hp: 50,
-      maxHp: 50,
-      damage: 10,
-      moveSpeed: 30,
-      rewardRed: 5,
-      rewardGold: 1
-    });
-
-    console.log(`已创建 ${this.enemies.length} 个测试敌人`);
   }
 
   /**
@@ -338,11 +291,14 @@ class Game {
     // 更新无人机光标
     this.droneCursor.update(deltaTime, this.mousePos);
 
-    // 更新测试敌人
-    this.updateEnemies(deltaTime);
+    // 更新敌人系统（生成、AI）
+    this.enemySystem.update(deltaTime);
+
+    // 获取所有活跃敌人
+    const enemies = this.enemySystem.getActiveEnemies();
 
     // 更新武器系统（寻找目标并发射）
-    this.weaponSystem.update(deltaTime, this.enemies, this.mousePos, this.resources);
+    this.weaponSystem.update(deltaTime, enemies, this.mousePos, this.resources);
 
     // 更新子弹
     this.weaponSystem.updateProjectiles(
@@ -355,37 +311,12 @@ class Game {
     const projectiles = this.weaponSystem.getActiveProjectiles();
     const collisionResult = this.collisionSystem.checkProjectileEnemyCollisions(
       projectiles,
-      this.enemies,
+      enemies,
       this.projectilePool,
       this.resources
     );
 
     // TODO: 资源采集、组件碰撞
-  }
-
-  /**
-   * 更新敌人（临时简单实现）
-   * @param {Number} deltaTime - 时间增量（秒）
-   */
-  updateEnemies(deltaTime) {
-    for (const enemy of this.enemies) {
-      if (!enemy.active) continue;
-
-      // 更新位置
-      const movement = Vector2.multiply(enemy.velocity, deltaTime);
-      enemy.position = Vector2.add(enemy.position, movement);
-
-      // 简单的边界反弹
-      const width = this.canvas.getWidth();
-      const height = this.canvas.getHeight();
-
-      if (enemy.position.x < 50 || enemy.position.x > width - 50) {
-        enemy.velocity.x *= -1;
-      }
-      if (enemy.position.y < 50 || enemy.position.y > height - 50) {
-        enemy.velocity.y *= -1;
-      }
-    }
   }
 
   /**
@@ -402,7 +333,7 @@ class Game {
     this.gridManager.render(this.ctx);
 
     // 渲染敌人
-    this.renderEnemies();
+    this.enemySystem.renderEnemies(this.ctx);
 
     // 渲染子弹
     this.weaponSystem.renderProjectiles(this.ctx);
@@ -412,47 +343,6 @@ class Game {
 
     // 渲染 UI 提示
     this.renderUI();
-  }
-
-  /**
-   * 渲染敌人（临时简单实现）
-   */
-  renderEnemies() {
-    const ctx = this.ctx;
-
-    for (const enemy of this.enemies) {
-      if (!enemy.active) continue;
-
-      ctx.save();
-
-      // 绘制敌人身体（红色圆形）
-      ctx.fillStyle = '#FF3333';
-      ctx.beginPath();
-      ctx.arc(enemy.position.x, enemy.position.y, 15, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 绘制边框
-      ctx.strokeStyle = '#FF0000';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // 绘制血条
-      const hpPercent = enemy.hp / enemy.maxHp;
-      const barWidth = 30;
-      const barHeight = 4;
-      const barX = enemy.position.x - barWidth / 2;
-      const barY = enemy.position.y - 25;
-
-      // 背景（灰色）
-      ctx.fillStyle = '#333333';
-      ctx.fillRect(barX, barY, barWidth, barHeight);
-
-      // 当前血量（绿色）
-      ctx.fillStyle = '#00FF00';
-      ctx.fillRect(barX, barY, barWidth * hpPercent, barHeight);
-
-      ctx.restore();
-    }
   }
 
   /**
@@ -501,7 +391,7 @@ class Game {
     ctx.fillStyle = '#00FFFF';
     ctx.font = '32px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('光标指挥官 - 碰撞检测测试', width / 2, 40);
+    ctx.fillText('光标指挥官 - 敌人系统测试', width / 2, 40);
 
     // 绘制资源信息
     ctx.fillStyle = '#FFFF00';
@@ -516,17 +406,19 @@ class Game {
 
     // 绘制统计信息
     const collisionStats = this.collisionSystem.getStats();
+    const enemyStats = this.enemySystem.getStats();
     ctx.fillStyle = '#00FF00';
     ctx.font = '16px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`击杀: ${collisionStats.totalKills}`, 20, 70);
-    ctx.fillText(`命中: ${collisionStats.totalHits}`, 20, 90);
+    ctx.fillText(`波次: ${enemyStats.currentWave}`, 20, 70);
+    ctx.fillText(`击杀: ${collisionStats.totalKills}`, 20, 90);
+    ctx.fillText(`存活: ${enemyStats.currentAlive}`, 20, 110);
 
     // 绘制版本信息
     ctx.fillStyle = '#666666';
     ctx.font = '14px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText('v0.7', width - 20, height - 20);
+    ctx.fillText('v0.8', width - 20, height - 20);
 
     ctx.restore();
   }

@@ -13,6 +13,7 @@ import DroneCursor from './entities/DroneCursor.js';
 import GridManager from './systems/GridManager.js';
 import { BuffSystem } from './systems/BuffSystem.js';
 import { WeaponSystem } from './systems/WeaponSystem.js';
+import { CollisionSystem } from './systems/CollisionSystem.js';
 import ObjectPool from './systems/ObjectPool.js';
 import Component from './entities/Component.js';
 import Projectile from './entities/Projectile.js';
@@ -26,7 +27,7 @@ import { ComponentType } from './config/DataDictionary.js';
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.6 - 武器系统与弹幕');
+    console.log('版本: v0.7 - 碰撞检测系统');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -73,6 +74,10 @@ class Game {
     // 初始化武器系统
     this.weaponSystem = new WeaponSystem(this.gridManager, this.projectilePool);
     console.log('武器系统已初始化');
+
+    // 初始化碰撞检测系统
+    this.collisionSystem = new CollisionSystem();
+    console.log('碰撞检测系统已初始化');
 
     // 创建测试敌人（临时，用于测试武器发射）
     this.enemies = [];
@@ -346,7 +351,16 @@ class Game {
       this.canvas.getHeight()
     );
 
-    // TODO: 碰撞检测、资源采集
+    // 碰撞检测
+    const projectiles = this.weaponSystem.getActiveProjectiles();
+    const collisionResult = this.collisionSystem.checkProjectileEnemyCollisions(
+      projectiles,
+      this.enemies,
+      this.projectilePool,
+      this.resources
+    );
+
+    // TODO: 资源采集、组件碰撞
   }
 
   /**
@@ -487,7 +501,7 @@ class Game {
     ctx.fillStyle = '#00FFFF';
     ctx.font = '32px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('光标指挥官 - 武器系统测试', width / 2, 40);
+    ctx.fillText('光标指挥官 - 碰撞检测测试', width / 2, 40);
 
     // 绘制资源信息
     ctx.fillStyle = '#FFFF00';
@@ -500,9 +514,19 @@ class Game {
     ctx.font = '14px monospace';
     ctx.fillText('[空格] 暂停  [D] 调试信息  [R] 重启', 20, height - 20);
 
+    // 绘制统计信息
+    const collisionStats = this.collisionSystem.getStats();
+    ctx.fillStyle = '#00FF00';
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`击杀: ${collisionStats.totalKills}`, 20, 70);
+    ctx.fillText(`命中: ${collisionStats.totalHits}`, 20, 90);
+
     // 绘制版本信息
+    ctx.fillStyle = '#666666';
+    ctx.font = '14px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText('v0.6', width - 20, height - 20);
+    ctx.fillText('v0.7', width - 20, height - 20);
 
     ctx.restore();
   }

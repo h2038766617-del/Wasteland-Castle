@@ -11,6 +11,7 @@
 import Canvas from './core/Canvas.js';
 import DroneCursor from './entities/DroneCursor.js';
 import GridManager from './systems/GridManager.js';
+import { BuffSystem } from './systems/BuffSystem.js';
 import Component from './entities/Component.js';
 import { CANVAS, DEBUG, PERFORMANCE } from './config/Constants.js';
 import { ComponentType } from './config/DataDictionary.js';
@@ -21,7 +22,7 @@ import { ComponentType } from './config/DataDictionary.js';
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.4 - 组件系统');
+    console.log('版本: v0.5 - 邻接加成系统');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -44,8 +45,15 @@ class Game {
     // 初始化网格管理器
     this.gridManager = new GridManager();
 
+    // 初始化邻接加成系统
+    this.buffSystem = new BuffSystem();
+
     // 创建测试组件并放置到网格
     this.createTestComponents();
+
+    // 计算邻接加成
+    this.buffSystem.recalculateBuffs(this.gridManager);
+    console.log('邻接加成已计算完成');
 
     // 初始化无人机光标
     const centerX = this.canvas.getWidth() / 2;
@@ -328,7 +336,7 @@ class Game {
     ctx.fillStyle = '#00FFFF';
     ctx.font = '32px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('光标指挥官 - 组件测试', width / 2, 40);
+    ctx.fillText('光标指挥官 - 邻接加成测试', width / 2, 40);
 
     // 绘制提示文字
     ctx.fillStyle = '#666666';
@@ -338,7 +346,7 @@ class Game {
 
     // 绘制版本信息
     ctx.textAlign = 'right';
-    ctx.fillText('v0.4', width - 20, height - 20);
+    ctx.fillText('v0.5', width - 20, height - 20);
 
     ctx.restore();
   }

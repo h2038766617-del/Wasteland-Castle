@@ -132,13 +132,85 @@ export class CollisionSystem {
   }
 
   /**
-   * 检测敌人与组件的碰撞（未来实现）
+   * 检测敌人与组件的碰撞并处理攻击
    * @param {Array<Enemy>} enemies - 敌人数组
    * @param {Array<Component>} components - 组件数组
    * @param {GridManager} gridManager - 网格管理器
+   * @returns {Object} { attacks: Number, destroyed: Number }
    */
   checkEnemyComponentCollisions(enemies, components, gridManager) {
-    // TODO: 实现敌人撞击组件造成伤害的逻辑
+    let attacks = 0;
+    let destroyed = 0;
+
+    for (const enemy of enemies) {
+      if (!enemy.active) continue;
+
+      // 获取距离敌人最近的组件
+      const nearestComponent = this.findNearestComponent(enemy, components, gridManager);
+
+      if (nearestComponent) {
+        const componentPos = gridManager.gridToScreen(
+          nearestComponent.gridPos.col,
+          nearestComponent.gridPos.row
+        );
+
+        // 检查是否在攻击范围内（敌人半径 + 组件半径）
+        const attackRange = enemy.radius + gridManager.cellSize_px / 2;
+        const distance = Vector2.distance(enemy.position, {
+          x: componentPos.x_px,
+          y: componentPos.y_px
+        });
+
+        if (distance <= attackRange) {
+          // 敌人在攻击范围内，尝试攻击
+          if (enemy.canAttack()) {
+            const damage = enemy.attack();
+            nearestComponent.takeDamage(damage);
+            attacks++;
+
+            // 检查组件是否被摧毁
+            if (nearestComponent.isDestroyed()) {
+              destroyed++;
+            }
+          }
+        }
+      }
+    }
+
+    return { attacks, destroyed };
+  }
+
+  /**
+   * 找到距离敌人最近的组件
+   * @param {Enemy} enemy - 敌人
+   * @param {Array<Component>} components - 组件数组
+   * @param {GridManager} gridManager - 网格管理器
+   * @returns {Component|null} 最近的组件或 null
+   */
+  findNearestComponent(enemy, components, gridManager) {
+    let nearestComponent = null;
+    let minDistance = Infinity;
+
+    for (const component of components) {
+      if (component.isDestroyed()) continue;
+
+      const componentPos = gridManager.gridToScreen(
+        component.gridPos.col,
+        component.gridPos.row
+      );
+
+      const distance = Vector2.distance(enemy.position, {
+        x: componentPos.x_px,
+        y: componentPos.y_px
+      });
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestComponent = component;
+      }
+    }
+
+    return nearestComponent;
   }
 
   /**

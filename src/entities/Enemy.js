@@ -51,6 +51,8 @@ export default class Enemy {
 
     // AI 状态
     this.targetPosition = null; // 当前目标位置
+    this.attackCooldown = 0; // 攻击冷却计时器（秒）
+    this.attackInterval = 1.0; // 攻击间隔（秒）
   }
 
   /**
@@ -83,6 +85,7 @@ export default class Enemy {
 
     // 重置 AI 状态
     this.targetPosition = null;
+    this.attackCooldown = 0;
   }
 
   /**
@@ -94,6 +97,7 @@ export default class Enemy {
     this.velocity = { x: 0, y: 0 };
     this.hp = 50;
     this.targetPosition = null;
+    this.attackCooldown = 0;
   }
 
   /**
@@ -131,6 +135,14 @@ export default class Enemy {
   update(deltaTime, targetPos) {
     if (!this.active) return;
 
+    // 更新攻击冷却
+    if (this.attackCooldown > 0) {
+      this.attackCooldown -= deltaTime;
+      if (this.attackCooldown < 0) {
+        this.attackCooldown = 0;
+      }
+    }
+
     // 更新目标位置
     this.targetPosition = targetPos;
 
@@ -151,6 +163,25 @@ export default class Enemy {
         this.velocity = { x: 0, y: 0 };
       }
     }
+  }
+
+  /**
+   * 检查是否可以攻击
+   * @returns {Boolean}
+   */
+  canAttack() {
+    return this.attackCooldown <= 0;
+  }
+
+  /**
+   * 执行攻击（重置冷却）
+   * @returns {Number} 伤害值
+   */
+  attack() {
+    if (!this.canAttack()) return 0;
+
+    this.attackCooldown = this.attackInterval;
+    return this.damage;
   }
 
   /**

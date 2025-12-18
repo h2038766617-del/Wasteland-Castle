@@ -29,7 +29,7 @@ import { ComponentType } from './config/DataDictionary.js';
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.8 - 敌人系统与 AI');
+    console.log('版本: v0.9 - 敌人攻击与游戏结束');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -48,6 +48,7 @@ class Game {
     // 游戏状态
     this.isRunning = false;
     this.isPaused = false;
+    this.isGameOver = false;
 
     // 初始化资源
     this.resources = {
@@ -307,7 +308,7 @@ class Game {
       this.canvas.getHeight()
     );
 
-    // 碰撞检测
+    // 碰撞检测：子弹-敌人
     const projectiles = this.weaponSystem.getActiveProjectiles();
     const collisionResult = this.collisionSystem.checkProjectileEnemyCollisions(
       projectiles,
@@ -316,7 +317,33 @@ class Game {
       this.resources
     );
 
-    // TODO: 资源采集、组件碰撞
+    // 碰撞检测：敌人-组件
+    const components = this.gridManager.getAllComponents();
+    const attackResult = this.collisionSystem.checkEnemyComponentCollisions(
+      enemies,
+      components,
+      this.gridManager
+    );
+
+    // 检查核心是否被摧毁
+    this.checkGameOver();
+  }
+
+  /**
+   * 检查游戏是否结束
+   */
+  checkGameOver() {
+    if (this.isGameOver) return;
+
+    // 检查核心组件是否被摧毁
+    const coreComponents = this.gridManager.getComponentsByType(ComponentType.CORE);
+
+    if (coreComponents.length === 0 || coreComponents.every(core => core.isDestroyed())) {
+      this.isGameOver = true;
+      this.isPaused = true;
+      console.log('=== GAME OVER ===');
+      console.log('核心被摧毁！');
+    }
   }
 
   /**
@@ -388,10 +415,11 @@ class Game {
     ctx.save();
 
     // 绘制标题
-    ctx.fillStyle = '#00FFFF';
+    ctx.fillStyle = this.isGameOver ? '#FF0000' : '#00FFFF';
     ctx.font = '32px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('光标指挥官 - 敌人系统测试', width / 2, 40);
+    const title = this.isGameOver ? '游戏结束 - 核心被摧毁' : '光标指挥官 - 敌人攻击测试';
+    ctx.fillText(title, width / 2, 40);
 
     // 绘制资源信息
     ctx.fillStyle = '#FFFF00';
@@ -407,6 +435,9 @@ class Game {
     // 绘制统计信息
     const collisionStats = this.collisionSystem.getStats();
     const enemyStats = this.enemySystem.getStats();
+    const coreComponents = this.gridManager.getComponentsByType(ComponentType.CORE);
+    const coreHp = coreComponents.length > 0 ? coreComponents[0].stats.hp : 0;
+
     ctx.fillStyle = '#00FF00';
     ctx.font = '16px monospace';
     ctx.textAlign = 'left';
@@ -414,11 +445,15 @@ class Game {
     ctx.fillText(`击杀: ${collisionStats.totalKills}`, 20, 90);
     ctx.fillText(`存活: ${enemyStats.currentAlive}`, 20, 110);
 
+    // 核心血量（红色警告）
+    ctx.fillStyle = coreHp < 200 ? '#FF0000' : '#00FF00';
+    ctx.fillText(`核心: ${Math.floor(coreHp)}`, 20, 130);
+
     // 绘制版本信息
     ctx.fillStyle = '#666666';
     ctx.font = '14px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText('v0.8', width - 20, height - 20);
+    ctx.fillText('v0.9', width - 20, height - 20);
 
     ctx.restore();
   }

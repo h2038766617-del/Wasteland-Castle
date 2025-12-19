@@ -109,6 +109,14 @@ export default class Component {
   }
 
   /**
+   * 检查是否已被摧毁
+   * @returns {boolean}
+   */
+  isDestroyed() {
+    return this.stats.hp <= 0;
+  }
+
+  /**
    * 检查是否是武器
    * @returns {boolean}
    */

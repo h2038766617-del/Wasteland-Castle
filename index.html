@@ -93,6 +93,47 @@
     <div>State: <span id="gameState">INIT</span></div>
   </div>
 
+  <!-- 错误捕获脚本 -->
+  <script>
+    // 全局错误捕获
+    window.addEventListener('error', (e) => {
+      console.error('=== 全局错误 ===');
+      console.error('消息:', e.message);
+      console.error('文件:', e.filename);
+      console.error('行号:', e.lineno);
+      console.error('列号:', e.colno);
+      console.error('错误对象:', e.error);
+
+      // 显示错误在加载界面
+      const loading = document.getElementById('loading');
+      if (loading && !loading.classList.contains('hidden')) {
+        loading.innerHTML = `
+          <h1 style="color: #FF0000;">加载错误</h1>
+          <p style="color: #FFFF00; margin-top: 20px;">请打开浏览器控制台查看详细错误信息</p>
+          <p style="color: #888; margin-top: 10px; font-size: 14px;">${e.message}</p>
+          <p style="color: #666; margin-top: 5px; font-size: 12px;">${e.filename}:${e.lineno}</p>
+        `;
+      }
+    });
+
+    // 未处理的 Promise 拒绝
+    window.addEventListener('unhandledrejection', (e) => {
+      console.error('=== 未处理的 Promise 拒绝 ===');
+      console.error('原因:', e.reason);
+
+      const loading = document.getElementById('loading');
+      if (loading && !loading.classList.contains('hidden')) {
+        loading.innerHTML = `
+          <h1 style="color: #FF0000;">模块加载错误</h1>
+          <p style="color: #FFFF00; margin-top: 20px;">请打开浏览器控制台查看详细错误信息</p>
+          <p style="color: #888; margin-top: 10px; font-size: 14px;">${e.reason}</p>
+        `;
+      }
+    });
+
+    console.log('错误捕获已设置');
+  </script>
+
   <!-- 主脚本 (ES6 Module) -->
   <script type="module" src="./src/main.js"></script>
 </body>

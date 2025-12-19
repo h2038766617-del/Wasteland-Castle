@@ -354,6 +354,20 @@ export default class GridManager {
       }
     }
 
+    // 显示加成信息（在组件的第一个格子中心）
+    if (component.buffMultiplier && component.buffMultiplier > 1.0) {
+      const firstCellCol = col;
+      const firstCellRow = row;
+      const { x_px, y_px } = this.gridToScreen(firstCellCol, firstCellRow);
+
+      const buffPercent = Math.round((component.buffMultiplier - 1.0) * 100);
+      ctx.fillStyle = '#00FF00';
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`+${buffPercent}%`, x_px, y_px);
+    }
+
     ctx.restore();
   }
 

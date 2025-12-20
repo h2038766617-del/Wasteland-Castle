@@ -17,12 +17,13 @@ import { BuffSystem } from './systems/BuffSystem.js';
 import { WeaponSystem } from './systems/WeaponSystem.js';
 import { CollisionSystem } from './systems/CollisionSystem.js';
 import { EnemySystem } from './systems/EnemySystem.js';
+import { ScrollSystem } from './systems/ScrollSystem.js';
 import ObjectPool from './systems/ObjectPool.js';
 import Component from './entities/Component.js';
 import Projectile from './entities/Projectile.js';
 import Enemy from './entities/Enemy.js';
 import * as Vector2 from './utils/Vector2.js';
-import { CANVAS, DEBUG, PERFORMANCE } from './config/Constants.js';
+import { CANVAS, DEBUG, PERFORMANCE, SCROLL } from './config/Constants.js';
 import { ComponentType } from './config/DataDictionary.js';
 
 console.log('main.js 所有模块导入完成');
@@ -33,7 +34,7 @@ console.log('main.js 所有模块导入完成');
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.9 - 敌人攻击与游戏结束');
+    console.log('版本: v0.10 - 横版卷轴系统');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -61,8 +62,23 @@ class Game {
       gold: 50     // 金币/芯片
     };
 
-    // 初始化网格管理器
-    this.gridManager = new GridManager();
+    // 计算载具锚定位置（屏幕左侧 1/3）
+    const vehicleX = this.canvas.getWidth() * SCROLL.VEHICLE_X_RATIO;
+    const vehicleY = this.canvas.getHeight() / 2;
+
+    // 初始化网格管理器（放置在载具位置附近）
+    // 网格宽度 = 4格 * 80px = 320px，将网格中心对齐到载具位置
+    const gridWidth = 4 * 80;  // GRID.SIZE * GRID.CELL_SIZE_PX
+    const gridHeight = 4 * 80;
+    const gridOriginX = vehicleX - gridWidth / 2;
+    const gridOriginY = vehicleY - gridHeight / 2;
+
+    this.gridManager = new GridManager(
+      4,  // gridSize
+      80, // cellSize_px
+      gridOriginX,
+      gridOriginY
+    );
 
     // 初始化邻接加成系统
     this.buffSystem = new BuffSystem();
@@ -93,6 +109,13 @@ class Game {
       this.canvas.getHeight()
     );
     console.log('敌人系统已初始化');
+
+    // 初始化横版卷轴系统
+    this.scrollSystem = new ScrollSystem(
+      this.canvas.getWidth(),
+      5000  // 目标距离 5000 像素
+    );
+    console.log('横版卷轴系统已初始化');
 
     // 初始化无人机光标
     const centerX = this.canvas.getWidth() / 2;
@@ -293,6 +316,9 @@ class Game {
    * @param {number} deltaTime - 时间增量（秒）
    */
   update(deltaTime) {
+    // 更新横版卷轴系统
+    this.scrollSystem.update(deltaTime);
+
     // 更新无人机光标
     this.droneCursor.update(deltaTime, this.mousePos);
 
@@ -422,8 +448,8 @@ class Game {
     ctx.fillStyle = this.isGameOver ? '#FF0000' : '#00FFFF';
     ctx.font = '32px monospace';
     ctx.textAlign = 'center';
-    const title = this.isGameOver ? '游戏结束 - 核心被摧毁' : '光标指挥官 - 敌人攻击测试';
-    ctx.fillText(title, width / 2, 40);
+    const title = this.isGameOver ? '游戏结束 - 核心被摧毁' : '光标指挥官 - 横版卷轴测试';
+    ctx.fillText(title, width / 2, 75);
 
     // 绘制资源信息
     ctx.fillStyle = '#FFFF00';
@@ -457,7 +483,74 @@ class Game {
     ctx.fillStyle = '#666666';
     ctx.font = '14px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText('v0.9', width - 20, height - 20);
+    ctx.fillText('v0.10', width - 20, height - 20);
+
+    // 绘制距离进度条
+    this.renderDistanceProgress();
+
+    ctx.restore();
+  }
+
+  /**
+   * 渲染距离进度条
+   */
+  renderDistanceProgress() {
+    const ctx = this.ctx;
+    const width = this.canvas.getWidth();
+    const height = this.canvas.getHeight();
+
+    ctx.save();
+
+    // 进度条尺寸和位置
+    const barWidth = 400;
+    const barHeight = 30;
+    const barX = (width - barWidth) / 2;
+    const barY = 20;
+
+    // 获取进度
+    const progress = this.scrollSystem.getProgress();
+    const distance = this.scrollSystem.getDistanceTraveled();
+    const target = this.scrollSystem.getTargetDistance();
+
+    // 绘制进度条背景
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+
+    // 绘制进度条边框
+    ctx.strokeStyle = '#00FFFF';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+    // 绘制进度填充
+    const fillWidth = barWidth * progress;
+    const gradient = ctx.createLinearGradient(barX, 0, barX + fillWidth, 0);
+    gradient.addColorStop(0, '#00FFFF');
+    gradient.addColorStop(1, '#00FF00');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(barX, barY, fillWidth, barHeight);
+
+    // 绘制距离文字
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const distanceText = `${Math.floor(distance)} / ${target} 米`;
+    ctx.fillText(distanceText, barX + barWidth / 2, barY + barHeight / 2);
+
+    // 绘制百分比
+    ctx.fillStyle = '#00FFFF';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'left';
+    const percentText = `${Math.floor(progress * 100)}%`;
+    ctx.fillText(percentText, barX + barWidth + 10, barY + barHeight / 2);
+
+    // 如果到达终点，显示提示
+    if (this.scrollSystem.hasReachedDestination()) {
+      ctx.fillStyle = '#00FF00';
+      ctx.font = '20px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('已到达安全屋！', barX + barWidth / 2, barY + barHeight + 25);
+    }
 
     ctx.restore();
   }

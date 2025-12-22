@@ -18,6 +18,7 @@ import { WeaponSystem } from './systems/WeaponSystem.js';
 import { CollisionSystem } from './systems/CollisionSystem.js';
 import { EnemySystem } from './systems/EnemySystem.js';
 import { ScrollSystem } from './systems/ScrollSystem.js';
+import { ResourceSystem } from './systems/ResourceSystem.js';
 import ObjectPool from './systems/ObjectPool.js';
 import Component from './entities/Component.js';
 import Projectile from './entities/Projectile.js';
@@ -34,7 +35,7 @@ console.log('main.js 所有模块导入完成');
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.10 - 横版卷轴系统');
+    console.log('版本: v0.11 - 资源采集系统');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -116,6 +117,14 @@ class Game {
       5000  // 目标距离 5000 像素
     );
     console.log('横版卷轴系统已初始化');
+
+    // 初始化资源采集系统
+    this.resourceSystem = new ResourceSystem(
+      this.scrollSystem,
+      this.canvas.getWidth(),
+      this.canvas.getHeight()
+    );
+    console.log('资源采集系统已初始化');
 
     // 初始化无人机光标
     const centerX = this.canvas.getWidth() / 2;
@@ -319,6 +328,9 @@ class Game {
     // 更新横版卷轴系统
     this.scrollSystem.update(deltaTime);
 
+    // 更新资源采集系统
+    this.resourceSystem.update(deltaTime, this.mousePos, this.resources);
+
     // 更新无人机光标
     this.droneCursor.update(deltaTime, this.mousePos);
 
@@ -389,6 +401,9 @@ class Game {
     // 渲染游戏网格和组件
     this.gridManager.render(this.ctx);
 
+    // 渲染资源节点
+    this.resourceSystem.renderNodes(this.ctx);
+
     // 渲染敌人
     this.enemySystem.renderEnemies(this.ctx);
 
@@ -397,6 +412,9 @@ class Game {
 
     // 渲染无人机光标
     this.droneCursor.render(this.ctx);
+
+    // 渲染资源掉落动画（在最上层）
+    this.resourceSystem.renderResourceDrops(this.ctx);
 
     // 渲染 UI 提示
     this.renderUI();

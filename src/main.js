@@ -19,6 +19,7 @@ import { CollisionSystem } from './systems/CollisionSystem.js';
 import { EnemySystem } from './systems/EnemySystem.js';
 import { ScrollSystem } from './systems/ScrollSystem.js';
 import { ResourceSystem } from './systems/ResourceSystem.js';
+import { ObstacleSystem } from './systems/ObstacleSystem.js';
 import ObjectPool from './systems/ObjectPool.js';
 import Component from './entities/Component.js';
 import Projectile from './entities/Projectile.js';
@@ -35,7 +36,7 @@ console.log('main.js 所有模块导入完成');
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.11 - 资源采集系统');
+    console.log('版本: v0.12 - 障碍物系统');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -125,6 +126,14 @@ class Game {
       this.canvas.getHeight()
     );
     console.log('资源采集系统已初始化');
+
+    // 初始化障碍物系统
+    this.obstacleSystem = new ObstacleSystem(
+      this.scrollSystem,
+      this.canvas.getWidth(),
+      this.canvas.getHeight()
+    );
+    console.log('障碍物系统已初始化');
 
     // 初始化无人机光标
     const centerX = this.canvas.getWidth() / 2;
@@ -331,6 +340,9 @@ class Game {
     // 更新资源采集系统
     this.resourceSystem.update(deltaTime, this.mousePos, this.resources);
 
+    // 更新障碍物系统
+    this.obstacleSystem.update(deltaTime, this.mousePos, this.resources);
+
     // 更新无人机光标
     this.droneCursor.update(deltaTime, this.mousePos);
 
@@ -395,6 +407,12 @@ class Game {
     // 清空 Canvas
     this.canvas.clear();
 
+    // 保存上下文状态
+    this.ctx.save();
+
+    // 应用屏幕抖动效果
+    this.obstacleSystem.applyScreenShake(this.ctx);
+
     // 绘制背景网格（用于坐标参考）
     this.renderBackgroundGrid();
 
@@ -403,6 +421,9 @@ class Game {
 
     // 渲染资源节点
     this.resourceSystem.renderNodes(this.ctx);
+
+    // 渲染障碍物
+    this.obstacleSystem.renderObstacles(this.ctx);
 
     // 渲染敌人
     this.enemySystem.renderEnemies(this.ctx);
@@ -415,6 +436,12 @@ class Game {
 
     // 渲染资源掉落动画（在最上层）
     this.resourceSystem.renderResourceDrops(this.ctx);
+
+    // 恢复上下文状态（取消屏幕抖动）
+    this.ctx.restore();
+
+    // 渲染阻挡警告 UI（不受屏幕抖动影响）
+    this.obstacleSystem.renderBlockingWarning(this.ctx);
 
     // 渲染 UI 提示
     this.renderUI();

@@ -20,6 +20,7 @@ import { EnemySystem } from './systems/EnemySystem.js';
 import { ScrollSystem } from './systems/ScrollSystem.js';
 import { ResourceSystem } from './systems/ResourceSystem.js';
 import { ObstacleSystem } from './systems/ObstacleSystem.js';
+import { SafeHouseSystem } from './systems/SafeHouseSystem.js';
 import ObjectPool from './systems/ObjectPool.js';
 import Component from './entities/Component.js';
 import Projectile from './entities/Projectile.js';
@@ -36,7 +37,7 @@ console.log('main.js 所有模块导入完成');
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.12 - 障碍物系统');
+    console.log('版本: v0.13 - 安全屋系统');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -134,6 +135,18 @@ class Game {
       this.canvas.getHeight()
     );
     console.log('障碍物系统已初始化');
+
+    // 初始化安全屋系统
+    this.safeHouseSystem = new SafeHouseSystem(
+      this.scrollSystem,
+      this.canvas.getWidth(),
+      this.canvas.getHeight(),
+      5000  // 目标距离（与 scrollSystem 一致）
+    );
+    console.log('安全屋系统已初始化');
+
+    // 生成旅途中的安全屋
+    this.safeHouseSystem.initJourney();
 
     // 初始化无人机光标
     const centerX = this.canvas.getWidth() / 2;
@@ -244,9 +257,15 @@ class Game {
 
     // 键盘事件（用于调试）
     window.addEventListener('keydown', (e) => {
-      // 空格键：暂停/继续
+      // 空格键：离开安全屋 或 暂停/继续
       if (e.code === 'Space') {
-        this.togglePause();
+        if (this.safeHouseSystem.isInSafeHouse) {
+          // 在安全屋中，按空格离开
+          this.safeHouseSystem.leaveSafeHouse();
+        } else {
+          // 不在安全屋，暂停/继续
+          this.togglePause();
+        }
       }
 
       // D 键：切换调试信息
@@ -343,6 +362,9 @@ class Game {
     // 更新障碍物系统
     this.obstacleSystem.update(deltaTime, this.mousePos, this.resources);
 
+    // 更新安全屋系统
+    this.safeHouseSystem.update(deltaTime);
+
     // 更新无人机光标
     this.droneCursor.update(deltaTime, this.mousePos);
 
@@ -425,6 +447,9 @@ class Game {
     // 渲染障碍物
     this.obstacleSystem.renderObstacles(this.ctx);
 
+    // 渲染安全屋
+    this.safeHouseSystem.renderSafeHouses(this.ctx);
+
     // 渲染敌人
     this.enemySystem.renderEnemies(this.ctx);
 
@@ -445,6 +470,9 @@ class Game {
 
     // 渲染 UI 提示
     this.renderUI();
+
+    // 渲染安全屋 UI（全屏，在最上层）
+    this.safeHouseSystem.renderSafeHouseUI(this.ctx);
   }
 
   /**

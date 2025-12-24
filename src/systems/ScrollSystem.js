@@ -28,6 +28,9 @@ export class ScrollSystem {
     // 背景卷动偏移量（像素）
     this.scrollOffset = 0;
 
+    // 正常卷动速度（像素/秒）
+    this.normalSpeed = SCROLL.TRAVEL_SPEED;
+
     // 当前卷动速度（像素/秒）
     this.currentSpeed = SCROLL.TRAVEL_SPEED;
 

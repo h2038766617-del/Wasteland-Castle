@@ -8,8 +8,6 @@
  * - 协调各个系统
  */
 
-console.log('main.js 开始加载...');
-
 import Canvas from './core/Canvas.js';
 import DroneCursor from './entities/DroneCursor.js';
 import GridManager from './systems/GridManager.js';
@@ -29,8 +27,6 @@ import Enemy from './entities/Enemy.js';
 import * as Vector2 from './utils/Vector2.js';
 import { CANVAS, DEBUG, PERFORMANCE, SCROLL } from './config/Constants.js';
 import { ComponentType } from './config/DataDictionary.js';
-
-console.log('main.js 所有模块导入完成');
 
 /**
  * 游戏主类
@@ -96,19 +92,15 @@ class Game {
 
     // 计算邻接加成
     this.buffSystem.recalculateBuffs(this.gridManager);
-    console.log('邻接加成已计算完成');
 
     // 初始化对象池
     this.projectilePool = new ObjectPool(() => new Projectile(), 100);
-    console.log('子弹对象池已创建（初始 100 个）');
 
     // 初始化武器系统
     this.weaponSystem = new WeaponSystem(this.gridManager, this.projectilePool);
-    console.log('武器系统已初始化');
 
     // 初始化碰撞检测系统
     this.collisionSystem = new CollisionSystem();
-    console.log('碰撞检测系统已初始化');
 
     // 初始化敌人系统
     this.enemySystem = new EnemySystem(
@@ -116,14 +108,12 @@ class Game {
       this.canvas.getWidth(),
       this.canvas.getHeight()
     );
-    console.log('敌人系统已初始化');
 
     // 初始化横版卷轴系统
     this.scrollSystem = new ScrollSystem(
       this.canvas.getWidth(),
       5000  // 目标距离 5000 像素
     );
-    console.log('横版卷轴系统已初始化');
 
     // 初始化资源采集系统
     this.resourceSystem = new ResourceSystem(
@@ -131,7 +121,6 @@ class Game {
       this.canvas.getWidth(),
       this.canvas.getHeight()
     );
-    console.log('资源采集系统已初始化');
 
     // 初始化障碍物系统
     this.obstacleSystem = new ObstacleSystem(
@@ -139,7 +128,6 @@ class Game {
       this.canvas.getWidth(),
       this.canvas.getHeight()
     );
-    console.log('障碍物系统已初始化');
 
     // 初始化安全屋系统
     this.safeHouseSystem = new SafeHouseSystem(
@@ -148,14 +136,12 @@ class Game {
       this.canvas.getHeight(),
       5000  // 目标距离（与 scrollSystem 一致）
     );
-    console.log('安全屋系统已初始化');
 
     // 生成旅途中的安全屋
     this.safeHouseSystem.initJourney();
 
     // 初始化粒子系统
     this.particleSystem = new ParticleSystem();
-    console.log('粒子系统已初始化');
 
     // 初始化无人机光标
     const centerX = this.canvas.getWidth() / 2;
@@ -167,8 +153,6 @@ class Game {
 
     // 更新调试信息
     this.updateDebugInfo();
-
-    console.log('游戏初始化完成');
   }
 
   /**
@@ -244,8 +228,6 @@ class Game {
       }
     });
     this.gridManager.placeComponent(booster, 0, 1);
-
-    console.log(`已放置 ${this.gridManager.getAllComponents().length} 个测试组件`);
   }
 
   /**
@@ -292,16 +274,12 @@ class Game {
         this.showHelp = !this.showHelp;
       }
     });
-
-    console.log('输入系统已设置');
-    console.log('快捷键: [空格] 暂停  [D] 调试信息  [R] 重启  [H] 帮助');
   }
 
   /**
    * 启动游戏
    */
   start() {
-    console.log('游戏启动中...');
     this.isRunning = true;
 
     // 隐藏加载界面
@@ -320,8 +298,6 @@ class Game {
 
     // 启动游戏循环
     requestAnimationFrame((time) => this.gameLoop(time));
-
-    console.log('游戏已启动');
   }
 
   /**
@@ -406,7 +382,8 @@ class Game {
       this.projectilePool,
       this.resources,
       this.damageNumbers,
-      this.particleSystem
+      this.particleSystem,
+      this.enemySystem  // 传递 enemySystem 以正确处理敌人死亡
     );
 
     // 更新视觉效果
@@ -961,7 +938,6 @@ class Game {
    */
   togglePause() {
     this.isPaused = !this.isPaused;
-    console.log(this.isPaused ? '游戏已暂停' : '游戏继续');
     this.updateDebugInfo();
   }
 
@@ -979,30 +955,58 @@ class Game {
    * 重启游戏
    */
   restart() {
-    console.log('重启游戏...');
-    // TODO: 重置所有游戏状态
+    // 重置游戏状态标志
+    this.isGameOver = false;
     this.isPaused = false;
+    this.showHelp = false;
+
+    // 重置资源到初始值
+    this.resources.red = 200;
+    this.resources.blue = 100;
+    this.resources.gold = 50;
+
+    // 清空视觉效果
+    this.damageNumbers = [];
+    this.particleSystem.clear();
+
+    // 重置各个系统
+    this.enemySystem.reset();
+    this.collisionSystem.resetStats();
+    this.weaponSystem.clearProjectiles();
+    this.scrollSystem.reset();
+    this.resourceSystem.reset();
+    this.obstacleSystem.reset();
+    this.safeHouseSystem.reset();
+
+    // 重新初始化安全屋旅程
+    this.safeHouseSystem.initJourney();
+
+    // 重置所有组件血量
+    const components = this.gridManager.getAllComponents();
+    for (const component of components) {
+      component.stats.hp = component.stats.maxHp;
+    }
+
+    // 重新计算邻接加成
+    this.buffSystem.recalculateBuffs(this.gridManager);
+
+    // 更新调试信息
     this.updateDebugInfo();
   }
 }
 
 // 等待 DOM 加载完成后启动游戏
 window.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM 加载完成');
 
   try {
-    console.log('开始创建游戏实例...');
     // 创建游戏实例
     const game = new Game();
-    console.log('游戏实例创建成功');
 
     // 启动游戏
-    console.log('调用 game.start()...');
     game.start();
 
     // 将游戏实例暴露到全局（方便调试）
     window.game = game;
-    console.log('游戏实例已暴露到 window.game');
   } catch (error) {
     console.error('=== 游戏初始化失败 ===');
     console.error(error);

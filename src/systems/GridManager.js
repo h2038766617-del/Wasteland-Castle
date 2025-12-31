@@ -332,10 +332,20 @@ export default class GridManager {
 
     ctx.save();
 
+    // 检查组件是否被摧毁
+    const isDestroyed = component.isDestroyed();
+
     // 根据组件类型选择颜色
     const color = this.getComponentColor(component.type);
-    ctx.fillStyle = color + '88'; // 半透明
-    ctx.strokeStyle = color;
+
+    // 被摧毁的组件使用暗灰色
+    if (isDestroyed) {
+      ctx.fillStyle = '#333333'; // 深灰色填充
+      ctx.strokeStyle = '#666666'; // 灰色边框
+    } else {
+      ctx.fillStyle = color + '88'; // 半透明
+      ctx.strokeStyle = color;
+    }
     ctx.lineWidth = 2;
 
     // 绘制组件占据的每个格子
@@ -354,8 +364,8 @@ export default class GridManager {
       }
     }
 
-    // 显示加成信息（在组件的第一个格子中心）
-    if (component.buffMultiplier && component.buffMultiplier > 1.0) {
+    // 显示加成信息（在组件的第一个格子中心，被摧毁的组件不显示）
+    if (!isDestroyed && component.buffMultiplier && component.buffMultiplier > 1.0) {
       const firstCellCol = col;
       const firstCellRow = row;
       const { x_px, y_px } = this.gridToScreen(firstCellCol, firstCellRow);

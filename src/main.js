@@ -382,7 +382,8 @@ class Game {
       this.projectilePool,
       this.resources,
       this.damageNumbers,
-      this.particleSystem
+      this.particleSystem,
+      this.enemySystem  // 传递 enemySystem 以正确处理敌人死亡
     );
 
     // 更新视觉效果

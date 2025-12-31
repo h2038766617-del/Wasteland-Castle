@@ -35,9 +35,10 @@ export class CollisionSystem {
    * @param {Object} resources - 资源对象（用于击杀奖励）
    * @param {Array} damageNumbers - 伤害数字数组（可选）
    * @param {ParticleSystem} particleSystem - 粒子系统（可选）
+   * @param {EnemySystem} enemySystem - 敌人系统（用于通知死亡，可选）
    * @returns {Object} { hits: Number, kills: Number }
    */
-  checkProjectileEnemyCollisions(projectiles, enemies, projectilePool, resources, damageNumbers = null, particleSystem = null) {
+  checkProjectileEnemyCollisions(projectiles, enemies, projectilePool, resources, damageNumbers = null, particleSystem = null, enemySystem = null) {
     let hits = 0;
     let kills = 0;
 
@@ -55,7 +56,7 @@ export class CollisionSystem {
           15 // 敌人半径（暂时硬编码）
         )) {
           // 处理碰撞
-          this.handleProjectileEnemyHit(projectile, enemy, projectilePool, resources, damageNumbers, particleSystem);
+          this.handleProjectileEnemyHit(projectile, enemy, projectilePool, resources, damageNumbers, particleSystem, enemySystem);
           hits++;
 
           // 检查敌人是否死亡
@@ -96,8 +97,9 @@ export class CollisionSystem {
    * @param {Object} resources - 资源对象
    * @param {Array} damageNumbers - 伤害数字数组（可选）
    * @param {ParticleSystem} particleSystem - 粒子系统（可选）
+   * @param {EnemySystem} enemySystem - 敌人系统（可选）
    */
-  handleProjectileEnemyHit(projectile, enemy, projectilePool, resources, damageNumbers = null, particleSystem = null) {
+  handleProjectileEnemyHit(projectile, enemy, projectilePool, resources, damageNumbers = null, particleSystem = null, enemySystem = null) {
     // 对敌人造成伤害（使用 takeDamage 触发视觉效果）
     const isDead = enemy.takeDamage(projectile.damage);
 
@@ -122,7 +124,7 @@ export class CollisionSystem {
 
     // 检查敌人是否死亡
     if (isDead) {
-      this.handleEnemyDeath(enemy, resources, particleSystem);
+      this.handleEnemyDeath(enemy, resources, particleSystem, enemySystem);
     }
   }
 
@@ -131,8 +133,9 @@ export class CollisionSystem {
    * @param {Enemy} enemy - 死亡的敌人
    * @param {Object} resources - 资源对象
    * @param {ParticleSystem} particleSystem - 粒子系统（可选）
+   * @param {EnemySystem} enemySystem - 敌人系统（可选）
    */
-  handleEnemyDeath(enemy, resources, particleSystem = null) {
+  handleEnemyDeath(enemy, resources, particleSystem = null, enemySystem = null) {
     // 创建死亡爆炸粒子效果
     if (particleSystem) {
       particleSystem.createEnemyExplosion(
@@ -142,13 +145,18 @@ export class CollisionSystem {
       );
     }
 
-    // 标记为非活跃
-    enemy.active = false;
-
-    // 给予击杀奖励
+    // 给予击杀奖励（在标记inactive之前）
     if (resources) {
       resources.red += enemy.rewardRed || 0;
       resources.gold += enemy.rewardGold || 0;
+    }
+
+    // 通知敌人系统处理死亡（会标记为inactive并归还对象池）
+    if (enemySystem) {
+      enemySystem.onEnemyDeath(enemy);
+    } else {
+      // 兼容：如果没有传enemySystem，仍然标记为非活跃
+      enemy.active = false;
     }
 
     // 更新统计

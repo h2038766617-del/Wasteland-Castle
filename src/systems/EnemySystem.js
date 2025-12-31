@@ -32,10 +32,17 @@ export class EnemySystem {
     // 初始化敌人对象池
     this.enemyPool = new ObjectPool(() => new Enemy(), 50);
 
-    // 波次系统
-    this.currentWave = 0;
-    this.waveTimer = 0;
-    this.waveDuration = 20; // 每波持续时间（秒）
+    // 波次系统（重构）
+    this.currentWave = 1; // 当前波次（从1开始）
+    this.maxWaves = 10; // 总波次数
+    this.waveState = 'WAVE_ACTIVE'; // 状态：PREPARING, WAVE_ACTIVE, WAVE_COMPLETE（第一波直接开始）
+    this.waveTimer = 0; // 当前状态计时器
+    this.prepareDuration = 8.0; // 准备期时长（秒）
+    this.waveDuration = 30.0; // 战斗期时长（秒）
+
+    // 敌人生成配置
+    this.enemiesPerWave = 10; // 每波敌人数量（基础值）
+    this.enemiesSpawnedThisWave = 0; // 本波已生成数量
     this.timeSinceLastSpawn = 0;
     this.spawnInterval = 3.0; // 生成间隔（秒）
 
@@ -80,17 +87,8 @@ export class EnemySystem {
    * @param {Number} deltaTime - 时间增量（秒）
    */
   update(deltaTime) {
-    // 更新波次计时器
-    this.waveTimer += deltaTime;
-
-    // 更新生成计时器
-    this.timeSinceLastSpawn += deltaTime;
-
-    // 检查是否需要生成新敌人
-    if (this.timeSinceLastSpawn >= this.spawnInterval) {
-      this.spawnEnemy();
-      this.timeSinceLastSpawn = 0;
-    }
+    // 更新波次状态机
+    this.updateWaveStateMachine(deltaTime);
 
     // 获取网格中心作为敌人目标
     const gridCenterX = this.gridManager.originX_px + (this.gridManager.gridSize * this.gridManager.cellSize_px) / 2;
@@ -105,6 +103,97 @@ export class EnemySystem {
 
     // 更新统计
     this.stats.currentAlive = enemies.length;
+    this.stats.currentWave = this.currentWave;
+  }
+
+  /**
+   * 波次状态机更新
+   * @param {Number} deltaTime - 时间增量（秒）
+   */
+  updateWaveStateMachine(deltaTime) {
+    this.waveTimer += deltaTime;
+
+    switch (this.waveState) {
+      case 'PREPARING':
+        // 准备期：不生成敌人，等待玩家准备
+        if (this.waveTimer >= this.prepareDuration) {
+          this.startWave();
+        }
+        break;
+
+      case 'WAVE_ACTIVE':
+        // 战斗期：持续生成敌人
+        this.timeSinceLastSpawn += deltaTime;
+
+        // 检查是否应该生成敌人
+        const targetEnemies = this.getEnemiesForCurrentWave();
+        if (this.enemiesSpawnedThisWave < targetEnemies &&
+            this.timeSinceLastSpawn >= this.spawnInterval) {
+          this.spawnEnemy();
+          this.enemiesSpawnedThisWave++;
+          this.timeSinceLastSpawn = 0;
+        }
+
+        // 检查波次是否完成（所有敌人已生成且已被消灭）
+        const activeEnemies = this.enemyPool.getActiveObjects().length;
+        if (this.enemiesSpawnedThisWave >= targetEnemies && activeEnemies === 0) {
+          this.completeWave();
+        }
+        break;
+
+      case 'WAVE_COMPLETE':
+        // 波次完成：过渡到下一波
+        if (this.waveTimer >= 2.0) { // 2秒过渡时间
+          this.prepareNextWave();
+        }
+        break;
+    }
+  }
+
+  /**
+   * 开始当前波次
+   */
+  startWave() {
+    this.waveState = 'WAVE_ACTIVE';
+    this.waveTimer = 0;
+    this.enemiesSpawnedThisWave = 0;
+    this.timeSinceLastSpawn = 0;
+    console.log(`🌊 波次 ${this.currentWave}/${this.maxWaves} 开始！`);
+  }
+
+  /**
+   * 完成当前波次
+   */
+  completeWave() {
+    this.waveState = 'WAVE_COMPLETE';
+    this.waveTimer = 0;
+    console.log(`✅ 波次 ${this.currentWave} 完成！`);
+  }
+
+  /**
+   * 准备下一波
+   */
+  prepareNextWave() {
+    this.currentWave++;
+
+    if (this.currentWave > this.maxWaves) {
+      console.log(`🎉 所有波次完成！胜利！`);
+      this.waveState = 'VICTORY';
+      return;
+    }
+
+    this.waveState = 'PREPARING';
+    this.waveTimer = 0;
+    console.log(`⏳ 准备波次 ${this.currentWave}/${this.maxWaves}...`);
+  }
+
+  /**
+   * 获取当前波次应该生成的敌人数量
+   * @returns {Number}
+   */
+  getEnemiesForCurrentWave() {
+    // 难度递增：每波增加2个敌人
+    return this.enemiesPerWave + (this.currentWave - 1) * 2;
   }
 
   /**
@@ -143,23 +232,37 @@ export class EnemySystem {
    * @returns {String} 敌人类型
    */
   selectEnemyType() {
-    const wave = Math.floor(this.waveTimer / this.waveDuration);
+    const rand = Math.random();
 
-    // 第 1-2 波：只有基础敌人
-    if (wave < 2) {
+    // 波次 1-2：仅基础敌人（教学期）
+    if (this.currentWave <= 2) {
       return 'basic_grunt';
     }
 
-    // 第 3-4 波：基础 + 快速
-    if (wave < 4) {
-      return Math.random() < 0.7 ? 'basic_grunt' : 'fast_runner';
+    // 波次 3-4：引入快速敌人
+    if (this.currentWave <= 4) {
+      return rand < 0.7 ? 'basic_grunt' : 'fast_runner';
     }
 
-    // 第 5+ 波：所有类型
-    const rand = Math.random();
-    if (rand < 0.5) return 'basic_grunt';
-    if (rand < 0.8) return 'fast_runner';
-    return 'heavy_tank';
+    // 波次 5-7：三种敌人混合
+    if (this.currentWave <= 7) {
+      if (rand < 0.5) {
+        return 'basic_grunt';
+      } else if (rand < 0.8) {
+        return 'fast_runner';
+      } else {
+        return 'heavy_tank';
+      }
+    }
+
+    // 波次 8-10：困难模式（更多重型敌人）
+    if (rand < 0.3) {
+      return 'basic_grunt';
+    } else if (rand < 0.6) {
+      return 'fast_runner';
+    } else {
+      return 'heavy_tank';
+    }
   }
 
   /**
@@ -238,16 +341,55 @@ export class EnemySystem {
    * @returns {Object}
    */
   getStats() {
-    const wave = Math.floor(this.waveTimer / this.waveDuration) + 1;
-    const waveProgress = (this.waveTimer % this.waveDuration) / this.waveDuration;
-
     return {
-      currentWave: wave,
-      waveProgress: waveProgress,
+      currentWave: this.currentWave,
+      maxWaves: this.maxWaves,
+      waveState: this.waveState,
+      waveTimer: this.waveTimer,
+      prepareDuration: this.prepareDuration,
+      waveDuration: this.waveDuration,
+      enemiesSpawned: this.enemiesSpawnedThisWave,
+      enemiesTarget: this.waveState === 'WAVE_ACTIVE' ? this.getEnemiesForCurrentWave() : 0,
       totalSpawned: this.stats.totalSpawned,
       totalKilled: this.stats.totalKilled,
       currentAlive: this.stats.currentAlive,
       poolStats: this.enemyPool.getStats()
+    };
+  }
+
+  /**
+   * 获取波次显示信息（用于UI）
+   * @returns {Object}
+   */
+  getWaveDisplayInfo() {
+    let statusText = '';
+    let timeRemaining = 0;
+
+    switch (this.waveState) {
+      case 'PREPARING':
+        statusText = '准备中';
+        timeRemaining = Math.ceil(this.prepareDuration - this.waveTimer);
+        break;
+      case 'WAVE_ACTIVE':
+        statusText = '战斗中';
+        timeRemaining = this.getEnemiesForCurrentWave() - this.enemiesSpawnedThisWave;
+        break;
+      case 'WAVE_COMPLETE':
+        statusText = '波次完成';
+        timeRemaining = 0;
+        break;
+      case 'VICTORY':
+        statusText = '胜利！';
+        timeRemaining = 0;
+        break;
+    }
+
+    return {
+      currentWave: this.currentWave,
+      maxWaves: this.maxWaves,
+      statusText,
+      timeRemaining,
+      waveState: this.waveState
     };
   }
 
@@ -265,11 +407,14 @@ export class EnemySystem {
    */
   reset() {
     this.clearAllEnemies();
-    this.currentWave = 0;
+    this.currentWave = 1;
+    this.waveState = 'WAVE_ACTIVE'; // 第一波直接开始
     this.waveTimer = 0;
+    this.enemiesSpawnedThisWave = 0;
     this.timeSinceLastSpawn = 0;
     this.stats.totalSpawned = 0;
     this.stats.totalKilled = 0;
     this.stats.currentAlive = 0;
+    console.log('🎮 游戏重置，第一波立即开始！');
   }
 }

@@ -567,6 +567,9 @@ class Game {
     ctx.font = '14px monospace';
     ctx.fillText('[空格] 暂停  [D] 调试信息  [R] 重启  [H] 帮助', 20, height - 20);
 
+    // 绘制波次信息（新设计）
+    this.renderWaveInfo(ctx, width);
+
     // 绘制统计信息
     const collisionStats = this.collisionSystem.getStats();
     const enemyStats = this.enemySystem.getStats();
@@ -576,13 +579,12 @@ class Game {
     ctx.fillStyle = '#00FF00';
     ctx.font = '16px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`波次: ${enemyStats.currentWave}`, 20, 70);
-    ctx.fillText(`击杀: ${collisionStats.totalKills}`, 20, 90);
-    ctx.fillText(`存活: ${enemyStats.currentAlive}`, 20, 110);
+    ctx.fillText(`击杀: ${collisionStats.totalKills}`, 20, 70);
+    ctx.fillText(`存活: ${enemyStats.currentAlive}`, 20, 90);
 
     // 核心血量（红色警告）
     ctx.fillStyle = coreHp < 200 ? '#FF0000' : '#00FF00';
-    ctx.fillText(`核心: ${Math.floor(coreHp)}`, 20, 130);
+    ctx.fillText(`核心: ${Math.floor(coreHp)}`, 20, 110);
 
     // 绘制版本信息
     ctx.fillStyle = '#666666';
@@ -702,6 +704,76 @@ class Game {
       ctx.strokeText(`-${dmg.damage}`, dmg.x, dmg.y);
       // 填充（黄色文字）
       ctx.fillText(`-${dmg.damage}`, dmg.x, dmg.y);
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * 渲染波次信息
+   * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
+   * @param {Number} width - 画布宽度
+   */
+  renderWaveInfo(ctx, width) {
+    const waveInfo = this.enemySystem.getWaveDisplayInfo();
+
+    ctx.save();
+
+    // 波次信息框位置（右上角）
+    const boxX = width - 250;
+    const boxY = 20;
+    const boxWidth = 230;
+    const boxHeight = 100;
+
+    // 绘制半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+    // 绘制边框
+    ctx.strokeStyle = waveInfo.waveState === 'WAVE_ACTIVE' ? '#FF3333' : '#00FFFF';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+    // 波次标题
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`波次 ${waveInfo.currentWave} / ${waveInfo.maxWaves}`, boxX + boxWidth / 2, boxY + 25);
+
+    // 状态文字
+    let statusColor = '#AAAAAA';
+    switch (waveInfo.waveState) {
+      case 'PREPARING':
+        statusColor = '#00FFFF';
+        break;
+      case 'WAVE_ACTIVE':
+        statusColor = '#FF3333';
+        break;
+      case 'WAVE_COMPLETE':
+        statusColor = '#00FF00';
+        break;
+      case 'VICTORY':
+        statusColor = '#FFD700';
+        break;
+    }
+
+    ctx.fillStyle = statusColor;
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText(waveInfo.statusText, boxX + boxWidth / 2, boxY + 50);
+
+    // 时间/敌人剩余
+    if (waveInfo.waveState === 'PREPARING') {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '16px monospace';
+      ctx.fillText(`准备时间: ${waveInfo.timeRemaining}秒`, boxX + boxWidth / 2, boxY + 75);
+    } else if (waveInfo.waveState === 'WAVE_ACTIVE') {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '16px monospace';
+      ctx.fillText(`剩余敌人: ${waveInfo.timeRemaining}`, boxX + boxWidth / 2, boxY + 75);
+    } else if (waveInfo.waveState === 'WAVE_COMPLETE') {
+      ctx.fillStyle = '#00FF00';
+      ctx.font = '16px monospace';
+      ctx.fillText('✓ 准备下一波', boxX + boxWidth / 2, boxY + 75);
     }
 
     ctx.restore();

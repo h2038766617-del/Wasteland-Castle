@@ -21,6 +21,7 @@ import { ScrollSystem } from './systems/ScrollSystem.js';
 import { ResourceSystem } from './systems/ResourceSystem.js';
 import { ObstacleSystem } from './systems/ObstacleSystem.js';
 import { SafeHouseSystem } from './systems/SafeHouseSystem.js';
+import { ParticleSystem } from './systems/ParticleSystem.js';
 import ObjectPool from './systems/ObjectPool.js';
 import Component from './entities/Component.js';
 import Projectile from './entities/Projectile.js';
@@ -151,6 +152,10 @@ class Game {
 
     // 生成旅途中的安全屋
     this.safeHouseSystem.initJourney();
+
+    // 初始化粒子系统
+    this.particleSystem = new ParticleSystem();
+    console.log('粒子系统已初始化');
 
     // 初始化无人机光标
     const centerX = this.canvas.getWidth() / 2;
@@ -400,11 +405,13 @@ class Game {
       enemies,
       this.projectilePool,
       this.resources,
-      this.damageNumbers
+      this.damageNumbers,
+      this.particleSystem
     );
 
     // 更新视觉效果
     this.updateDamageNumbers(deltaTime);
+    this.particleSystem.update(deltaTime);
 
     // 碰撞检测：敌人-组件
     const components = this.gridManager.getAllComponents();
@@ -474,6 +481,9 @@ class Game {
 
     // 渲染资源掉落动画（在最上层）
     this.resourceSystem.renderResourceDrops(this.ctx);
+
+    // 渲染粒子效果（在游戏世界层）
+    this.particleSystem.render(this.ctx);
 
     // 渲染伤害数字（在游戏世界层）
     this.renderDamageNumbers(this.ctx);

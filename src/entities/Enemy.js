@@ -53,6 +53,9 @@ export default class Enemy {
     this.targetPosition = null; // 当前目标位置
     this.attackCooldown = 0; // 攻击冷却计时器（秒）
     this.attackInterval = 1.0; // 攻击间隔（秒）
+
+    // 视觉反馈
+    this.hitFlash = 0; // 受击闪光计时器（秒）
   }
 
   /**
@@ -143,6 +146,14 @@ export default class Enemy {
       }
     }
 
+    // 更新受击闪光
+    if (this.hitFlash > 0) {
+      this.hitFlash -= deltaTime;
+      if (this.hitFlash < 0) {
+        this.hitFlash = 0;
+      }
+    }
+
     // 更新目标位置
     this.targetPosition = targetPos;
 
@@ -191,6 +202,7 @@ export default class Enemy {
    */
   takeDamage(damage) {
     this.hp -= damage;
+    this.hitFlash = 0.15; // 设置受击闪光效果（150ms）
     return this.hp <= 0;
   }
 
@@ -208,6 +220,14 @@ export default class Enemy {
     ctx.beginPath();
     ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
     ctx.fill();
+
+    // 受击闪光效果
+    if (this.hitFlash > 0) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${this.hitFlash * 4})`; // 闪光强度随时间衰减
+      ctx.beginPath();
+      ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // 绘制边框
     ctx.strokeStyle = this.color.replace('33', '00'); // 更深的颜色

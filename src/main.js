@@ -57,6 +57,10 @@ class Game {
     this.isRunning = false;
     this.isPaused = false;
     this.isGameOver = false;
+    this.showHelp = false; // 帮助界面显示状态
+
+    // 视觉效果
+    this.damageNumbers = []; // 浮动伤害数字
 
     // 初始化资源
     this.resources = {
@@ -277,10 +281,15 @@ class Game {
       if (e.code === 'KeyR') {
         this.restart();
       }
+
+      // H 键：切换帮助界面
+      if (e.code === 'KeyH') {
+        this.showHelp = !this.showHelp;
+      }
     });
 
     console.log('输入系统已设置');
-    console.log('快捷键: [空格] 暂停  [D] 调试信息  [R] 重启');
+    console.log('快捷键: [空格] 暂停  [D] 调试信息  [R] 重启  [H] 帮助');
   }
 
   /**
@@ -390,8 +399,12 @@ class Game {
       projectiles,
       enemies,
       this.projectilePool,
-      this.resources
+      this.resources,
+      this.damageNumbers
     );
+
+    // 更新视觉效果
+    this.updateDamageNumbers(deltaTime);
 
     // 碰撞检测：敌人-组件
     const components = this.gridManager.getAllComponents();
@@ -462,6 +475,9 @@ class Game {
     // 渲染资源掉落动画（在最上层）
     this.resourceSystem.renderResourceDrops(this.ctx);
 
+    // 渲染伤害数字（在游戏世界层）
+    this.renderDamageNumbers(this.ctx);
+
     // 恢复上下文状态（取消屏幕抖动）
     this.ctx.restore();
 
@@ -473,6 +489,9 @@ class Game {
 
     // 渲染安全屋 UI（全屏，在最上层）
     this.safeHouseSystem.renderSafeHouseUI(this.ctx);
+
+    // 渲染帮助界面（最顶层）
+    this.renderHelpOverlay(this.ctx);
   }
 
   /**
@@ -524,16 +543,29 @@ class Game {
     const title = this.isGameOver ? '游戏结束 - 核心被摧毁' : '光标指挥官 - 横版卷轴测试';
     ctx.fillText(title, width / 2, 75);
 
-    // 绘制资源信息
-    ctx.fillStyle = '#FFFF00';
+    // 绘制资源信息（改进：显示所有资源）
     ctx.font = '18px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`弹药: ${Math.floor(this.resources.red)}`, 20, 40);
+
+    // 红色资源（弹药）
+    ctx.fillStyle = '#FF3333';
+    ctx.fillText(`● ${Math.floor(this.resources.red)}`, 20, 40);
+
+    // 蓝色资源（建材）
+    ctx.fillStyle = '#3333FF';
+    ctx.fillText(`● ${Math.floor(this.resources.blue)}`, 120, 40);
+
+    // 金色资源（金币）
+    ctx.fillStyle = '#FFD700';
+    ctx.fillText(`● ${Math.floor(this.resources.gold)}`, 220, 40);
+
+    // 绘制当前状态提示
+    this.renderCurrentStatus(ctx);
 
     // 绘制提示文字
     ctx.fillStyle = '#666666';
     ctx.font = '14px monospace';
-    ctx.fillText('[空格] 暂停  [D] 调试信息  [R] 重启', 20, height - 20);
+    ctx.fillText('[空格] 暂停  [D] 调试信息  [R] 重启  [H] 帮助', 20, height - 20);
 
     // 绘制统计信息
     const collisionStats = this.collisionSystem.getStats();
@@ -623,6 +655,182 @@ class Game {
       ctx.font = '20px monospace';
       ctx.textAlign = 'center';
       ctx.fillText('已到达安全屋！', barX + barWidth / 2, barY + barHeight + 25);
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * 更新伤害数字
+   * @param {Number} deltaTime - 时间增量（秒）
+   */
+  updateDamageNumbers(deltaTime) {
+    for (let i = this.damageNumbers.length - 1; i >= 0; i--) {
+      const dmg = this.damageNumbers[i];
+
+      // 更新位置（向上飘动）
+      dmg.y += dmg.velocity * deltaTime;
+
+      // 更新生命周期和透明度
+      dmg.life -= deltaTime;
+      dmg.opacity = Math.max(0, dmg.life / 1.0); // 淡出
+
+      // 移除已消失的伤害数字
+      if (dmg.life <= 0) {
+        this.damageNumbers.splice(i, 1);
+      }
+    }
+  }
+
+  /**
+   * 渲染伤害数字
+   * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
+   */
+  renderDamageNumbers(ctx) {
+    ctx.save();
+
+    for (const dmg of this.damageNumbers) {
+      ctx.globalAlpha = dmg.opacity;
+      ctx.fillStyle = '#FFFF00';
+      ctx.strokeStyle = '#000000';
+      ctx.font = 'bold 20px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 3;
+
+      // 描边（黑色轮廓）
+      ctx.strokeText(`-${dmg.damage}`, dmg.x, dmg.y);
+      // 填充（黄色文字）
+      ctx.fillText(`-${dmg.damage}`, dmg.x, dmg.y);
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * 渲染当前状态提示
+   * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
+   */
+  renderCurrentStatus(ctx) {
+    // 检查当前正在进行的活动
+    let statusText = '';
+    let statusColor = '#888888';
+
+    // 检查是否正在采集资源
+    const resourceDebug = this.resourceSystem.getDebugInfo();
+    if (resourceDebug.isHarvesting) {
+      const node = this.resourceSystem.currentHarvestNode;
+      if (node && node.harvestProgress !== undefined) {
+        const progress = Math.floor(node.harvestProgress * 100);
+        const typeNames = { RED: '红色', BLUE: '蓝色', GOLD: '金色' };
+        const typeName = typeNames[node.resourceType] || node.resourceType;
+        statusText = `采集中: ${typeName}资源 (${progress}%)`;
+        statusColor = '#00FF00';
+      }
+    }
+
+    // 检查是否正在挖掘障碍物
+    if (!statusText) {
+      const obstacleDebug = this.obstacleSystem.getDebugInfo();
+      if (obstacleDebug.isDigging && this.obstacleSystem.currentDigObstacle) {
+        const obstacle = this.obstacleSystem.currentDigObstacle;
+        if (obstacle && obstacle.digProgress !== undefined) {
+          const progress = Math.floor(obstacle.digProgress * 100);
+          const typeNames = { TREE: '树木', ROCK: '巨石' };
+          const typeName = typeNames[obstacle.obstacleType] || obstacle.obstacleType;
+          statusText = `挖掘中: ${typeName} (${progress}%)`;
+          statusColor = '#FFAA00';
+        }
+      }
+    }
+
+    // 如果没有活动，显示空闲状态
+    if (!statusText) {
+      statusText = '空闲 - 移动光标到资源或障碍物上';
+      statusColor = '#666666';
+    }
+
+    // 渲染状态文字
+    ctx.save();
+    ctx.fillStyle = statusColor;
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(statusText, 20, 150);
+    ctx.restore();
+  }
+
+  /**
+   * 渲染帮助界面
+   * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
+   */
+  renderHelpOverlay(ctx) {
+    if (!this.showHelp) return;
+
+    const width = this.canvas.getWidth();
+    const height = this.canvas.getHeight();
+
+    ctx.save();
+
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(0, 0, width, height);
+
+    // 标题
+    ctx.fillStyle = '#00FFFF';
+    ctx.font = 'bold 36px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('游戏帮助', width / 2, 80);
+
+    // 帮助内容
+    const helpLines = [
+      '',
+      '【游戏目标】',
+      '驾驶载具穿越废土，到达安全屋',
+      '',
+      '【操作说明】',
+      '● 移动光标：悬停在资源节点上自动采集',
+      '● 挖掘障碍：悬停在障碍物上进行挖掘',
+      '● 自动战斗：炮塔自动攻击敌人',
+      '',
+      '【资源说明】',
+      '● 红色：弹药/能源（用于武器开火）',
+      '● 蓝色：建材/矿石（用于建造）',
+      '● 金色：金币/芯片（用于升级）',
+      '',
+      '【控制按键】',
+      '空格键 - 暂停/继续游戏',
+      'H 键   - 显示/隐藏帮助',
+      'D 键   - 切换调试信息',
+      'R 键   - 重新开始游戏',
+      '',
+      '【提示】',
+      '● 及时采集资源补充弹药',
+      '● 挖掉障碍物避免载具被卡住',
+      '● 保护核心，血量归零即游戏结束',
+      '',
+      '',
+      '按 H 键关闭帮助'
+    ];
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '18px monospace';
+    ctx.textAlign = 'left';
+
+    let y = 130;
+    for (const line of helpLines) {
+      if (line.startsWith('【')) {
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 20px monospace';
+      } else if (line.startsWith('●')) {
+        ctx.fillStyle = '#00FF00';
+        ctx.font = '16px monospace';
+      } else {
+        ctx.fillStyle = '#CCCCCC';
+        ctx.font = '16px monospace';
+      }
+
+      ctx.fillText(line, width / 2 - 300, y);
+      y += 24;
     }
 
     ctx.restore();

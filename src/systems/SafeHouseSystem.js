@@ -70,13 +70,12 @@ export class SafeHouseSystem {
 
     for (let i = 0; i < safeHousePositions.length; i++) {
       const pos = safeHousePositions[i];
-      const house = this.safeHousePool.get();
+      const house = this.safeHousePool.acquire({
+        worldX: pos.worldX,
+        worldY: pos.worldY,
+        houseNumber: i + 1
+      });
       if (house) {
-        house.init({
-          worldX: pos.worldX,
-          worldY: pos.worldY,
-          houseNumber: i + 1
-        });
         this.stats.totalHouses++;
       }
     }

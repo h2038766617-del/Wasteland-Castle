@@ -146,18 +146,16 @@ export class ObstacleSystem {
     }
 
     // 从对象池获取障碍物并初始化
-    const obstacle = this.obstaclePool.get();
+    const obstacle = this.obstaclePool.acquire({
+      obstacleType,
+      worldX,
+      worldY,
+      hp,
+      maxHp: hp,
+      digTime,
+      rewardAmount
+    });
     if (obstacle) {
-      obstacle.init({
-        obstacleType,
-        worldX,
-        worldY,
-        hp,
-        maxHp: hp,
-        digTime,
-        rewardAmount
-      });
-
       this.stats.totalSpawned++;
     }
   }

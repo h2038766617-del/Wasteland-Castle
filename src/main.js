@@ -435,6 +435,12 @@ class Game {
     // 绘制背景网格（用于坐标参考）
     this.renderBackgroundGrid();
 
+    // 绘制滚动地面（营造运动感）
+    this.renderScrollingGround();
+
+    // 渲染载具外形（底盘和边框）
+    this.renderVehicle();
+
     // 渲染游戏网格和组件
     this.gridManager.render(this.ctx);
 
@@ -509,6 +515,113 @@ class Game {
       ctx.lineTo(width, y);
       ctx.stroke();
     }
+
+    ctx.restore();
+  }
+
+  /**
+   * 渲染滚动地面（营造运动感）
+   */
+  renderScrollingGround() {
+    const ctx = this.ctx;
+    const width = this.canvas.getWidth();
+    const height = this.canvas.getHeight();
+
+    // 获取滚动偏移（用于地面移动）
+    const offset = this.scrollSystem.getScrollOffset() % 100;
+
+    ctx.save();
+
+    // 绘制地面条纹（交替颜色）
+    for (let x = -offset; x < width + 100; x += 100) {
+      const isEven = Math.floor((x + offset) / 100) % 2 === 0;
+      ctx.fillStyle = isEven ? '#1a1a1a' : '#151515';
+      ctx.fillRect(x, height - 100, 100, 100);
+    }
+
+    // 绘制地面上的细节线条（增强运动感）
+    ctx.strokeStyle = '#0a0a0a';
+    ctx.lineWidth = 1;
+    for (let x = -offset; x < width + 100; x += 50) {
+      ctx.beginPath();
+      ctx.moveTo(x, height - 100);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * 渲染载具外形（底盘和边框）
+   */
+  renderVehicle() {
+    const ctx = this.ctx;
+    const gridOriginX = this.gridManager.originX_px;
+    const gridOriginY = this.gridManager.originY_px;
+    const gridWidth = this.gridManager.getGridWidth_px();
+    const gridHeight = this.gridManager.getGridHeight_px();
+
+    ctx.save();
+
+    // 绘制载具底盘（扩展网格边界）
+    const padding = 15;
+    const vehicleX = gridOriginX - padding;
+    const vehicleY = gridOriginY - padding;
+    const vehicleWidth = gridWidth + padding * 2;
+    const vehicleHeight = gridHeight + padding * 2;
+
+    // 底盘填充
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(vehicleX, vehicleY, vehicleWidth, vehicleHeight);
+
+    // 底盘边框
+    ctx.strokeStyle = '#4a4a4a';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(vehicleX, vehicleY, vehicleWidth, vehicleHeight);
+
+    // 绘制车轮/履带（左右两侧）
+    const wheelRadius = 8;
+    const wheelColor = '#333333';
+    const wheelStroke = '#555555';
+
+    // 左侧车轮（3个）
+    for (let i = 0; i < 3; i++) {
+      const wheelY = vehicleY + (vehicleHeight / 4) * (i + 1);
+      const wheelX = vehicleX - 5;
+
+      ctx.fillStyle = wheelColor;
+      ctx.beginPath();
+      ctx.arc(wheelX, wheelY, wheelRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = wheelStroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // 右侧车轮（3个）
+    for (let i = 0; i < 3; i++) {
+      const wheelY = vehicleY + (vehicleHeight / 4) * (i + 1);
+      const wheelX = vehicleX + vehicleWidth + 5;
+
+      ctx.fillStyle = wheelColor;
+      ctx.beginPath();
+      ctx.arc(wheelX, wheelY, wheelRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = wheelStroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // 绘制载具装饰细节（顶部条纹）
+    ctx.strokeStyle = '#3a3a3a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(vehicleX + 10, vehicleY + 5);
+    ctx.lineTo(vehicleX + vehicleWidth - 10, vehicleY + 5);
+    ctx.stroke();
 
     ctx.restore();
   }

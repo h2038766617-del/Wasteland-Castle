@@ -38,7 +38,7 @@ console.log('main.js 所有模块导入完成');
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.13 - 安全屋系统');
+    console.log('版本: v0.15 - 波次系统 + 粒子效果');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -600,7 +600,7 @@ class Game {
     ctx.fillStyle = '#666666';
     ctx.font = '14px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText('v0.10', width - 20, height - 20);
+    ctx.fillText('v0.15', width - 20, height - 20);
 
     // 绘制距离进度条
     this.renderDistanceProgress();
@@ -867,12 +867,17 @@ class Game {
     const helpLines = [
       '',
       '【游戏目标】',
-      '驾驶载具穿越废土，到达安全屋',
+      '驾驶载具穿越废土，击败10波敌人',
       '',
       '【操作说明】',
       '● 移动光标：悬停在资源节点上自动采集',
       '● 挖掘障碍：悬停在障碍物上进行挖掘',
       '● 自动战斗：炮塔自动攻击敌人',
+      '',
+      '【波次系统】',
+      '● 准备期：8秒安全时间采集资源',
+      '● 战斗期：消灭所有敌人完成波次',
+      '● 难度递增：每波敌人数量+2',
       '',
       '【资源说明】',
       '● 红色：弹药/能源（用于武器开火）',

@@ -41,9 +41,9 @@ export default class Enemy {
     this.damage = 10;
     this.moveSpeed = 30;
 
-    // 死亡奖励
-    this.rewardRed = 5;
-    this.rewardGold = 1;
+    // 死亡奖励（大幅增加以平衡弹药消耗）
+    this.rewardRed = 15; // 从5增加到15（弹药）
+    this.rewardGold = 2; // 从1增加到2（金币）
 
     // 渲染属性（不在 Schema 中，但方便渲染）
     this.radius = 15;

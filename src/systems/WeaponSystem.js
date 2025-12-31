@@ -43,6 +43,9 @@ export class WeaponSystem {
     const weapons = this.gridManager.getComponentsByType(ComponentType.WEAPON);
 
     for (const weapon of weapons) {
+      // 跳过已被摧毁的武器
+      if (weapon.isDestroyed()) continue;
+
       // 更新冷却计时器（Component.update() 已经处理，这里可省略）
       weapon.update(deltaTime);
 

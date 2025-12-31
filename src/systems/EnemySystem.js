@@ -35,7 +35,7 @@ export class EnemySystem {
     // 波次系统（重构）
     this.currentWave = 1; // 当前波次（从1开始）
     this.maxWaves = 10; // 总波次数
-    this.waveState = 'WAVE_ACTIVE'; // 状态：PREPARING, WAVE_ACTIVE, WAVE_COMPLETE（第一波直接开始）
+    this.waveState = 'PREPARING'; // 状态：PREPARING, WAVE_ACTIVE, WAVE_COMPLETE（给玩家准备时间）
     this.waveTimer = 0; // 当前状态计时器
     this.prepareDuration = 8.0; // 准备期时长（秒）
     this.waveDuration = 30.0; // 战斗期时长（秒）
@@ -157,7 +157,7 @@ export class EnemySystem {
     this.waveState = 'WAVE_ACTIVE';
     this.waveTimer = 0;
     this.enemiesSpawnedThisWave = 0;
-    this.timeSinceLastSpawn = 0;
+    this.timeSinceLastSpawn = this.spawnInterval; // 立即生成第一个敌人
   }
 
   /**
@@ -403,7 +403,7 @@ export class EnemySystem {
   reset() {
     this.clearAllEnemies();
     this.currentWave = 1;
-    this.waveState = 'WAVE_ACTIVE'; // 第一波直接开始
+    this.waveState = 'PREPARING'; // 给玩家准备时间
     this.waveTimer = 0;
     this.enemiesSpawnedThisWave = 0;
     this.timeSinceLastSpawn = 0;

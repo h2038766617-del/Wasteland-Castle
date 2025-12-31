@@ -158,7 +158,6 @@ export class EnemySystem {
     this.waveTimer = 0;
     this.enemiesSpawnedThisWave = 0;
     this.timeSinceLastSpawn = 0;
-    console.log(`🌊 波次 ${this.currentWave}/${this.maxWaves} 开始！`);
   }
 
   /**
@@ -167,7 +166,6 @@ export class EnemySystem {
   completeWave() {
     this.waveState = 'WAVE_COMPLETE';
     this.waveTimer = 0;
-    console.log(`✅ 波次 ${this.currentWave} 完成！`);
   }
 
   /**
@@ -177,14 +175,12 @@ export class EnemySystem {
     this.currentWave++;
 
     if (this.currentWave > this.maxWaves) {
-      console.log(`🎉 所有波次完成！胜利！`);
       this.waveState = 'VICTORY';
       return;
     }
 
     this.waveState = 'PREPARING';
     this.waveTimer = 0;
-    console.log(`⏳ 准备波次 ${this.currentWave}/${this.maxWaves}...`);
   }
 
   /**
@@ -399,7 +395,6 @@ export class EnemySystem {
   nextWave() {
     this.currentWave++;
     this.waveTimer = this.currentWave * this.waveDuration;
-    console.log(`Wave ${this.currentWave + 1} started!`);
   }
 
   /**
@@ -415,6 +410,5 @@ export class EnemySystem {
     this.stats.totalSpawned = 0;
     this.stats.totalKilled = 0;
     this.stats.currentAlive = 0;
-    console.log('🎮 游戏重置，第一波立即开始！');
   }
 }

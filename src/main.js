@@ -21,6 +21,7 @@ import { ScrollSystem } from './systems/ScrollSystem.js';
 import { ResourceSystem } from './systems/ResourceSystem.js';
 import { ObstacleSystem } from './systems/ObstacleSystem.js';
 import { SafeHouseSystem } from './systems/SafeHouseSystem.js';
+import { ParticleSystem } from './systems/ParticleSystem.js';
 import ObjectPool from './systems/ObjectPool.js';
 import Component from './entities/Component.js';
 import Projectile from './entities/Projectile.js';
@@ -37,7 +38,7 @@ console.log('main.js 所有模块导入完成');
 class Game {
   constructor() {
     console.log('=== 光标指挥官 (Cursor Commander) ===');
-    console.log('版本: v0.13 - 安全屋系统');
+    console.log('版本: v0.15 - 波次系统 + 粒子效果');
 
     // 初始化 Canvas
     this.canvas = new Canvas(CANVAS.ID);
@@ -151,6 +152,10 @@ class Game {
 
     // 生成旅途中的安全屋
     this.safeHouseSystem.initJourney();
+
+    // 初始化粒子系统
+    this.particleSystem = new ParticleSystem();
+    console.log('粒子系统已初始化');
 
     // 初始化无人机光标
     const centerX = this.canvas.getWidth() / 2;
@@ -400,11 +405,13 @@ class Game {
       enemies,
       this.projectilePool,
       this.resources,
-      this.damageNumbers
+      this.damageNumbers,
+      this.particleSystem
     );
 
     // 更新视觉效果
     this.updateDamageNumbers(deltaTime);
+    this.particleSystem.update(deltaTime);
 
     // 碰撞检测：敌人-组件
     const components = this.gridManager.getAllComponents();
@@ -474,6 +481,9 @@ class Game {
 
     // 渲染资源掉落动画（在最上层）
     this.resourceSystem.renderResourceDrops(this.ctx);
+
+    // 渲染粒子效果（在游戏世界层）
+    this.particleSystem.render(this.ctx);
 
     // 渲染伤害数字（在游戏世界层）
     this.renderDamageNumbers(this.ctx);
@@ -567,6 +577,9 @@ class Game {
     ctx.font = '14px monospace';
     ctx.fillText('[空格] 暂停  [D] 调试信息  [R] 重启  [H] 帮助', 20, height - 20);
 
+    // 绘制波次信息（新设计）
+    this.renderWaveInfo(ctx, width);
+
     // 绘制统计信息
     const collisionStats = this.collisionSystem.getStats();
     const enemyStats = this.enemySystem.getStats();
@@ -576,19 +589,18 @@ class Game {
     ctx.fillStyle = '#00FF00';
     ctx.font = '16px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`波次: ${enemyStats.currentWave}`, 20, 70);
-    ctx.fillText(`击杀: ${collisionStats.totalKills}`, 20, 90);
-    ctx.fillText(`存活: ${enemyStats.currentAlive}`, 20, 110);
+    ctx.fillText(`击杀: ${collisionStats.totalKills}`, 20, 70);
+    ctx.fillText(`存活: ${enemyStats.currentAlive}`, 20, 90);
 
     // 核心血量（红色警告）
     ctx.fillStyle = coreHp < 200 ? '#FF0000' : '#00FF00';
-    ctx.fillText(`核心: ${Math.floor(coreHp)}`, 20, 130);
+    ctx.fillText(`核心: ${Math.floor(coreHp)}`, 20, 110);
 
     // 绘制版本信息
     ctx.fillStyle = '#666666';
     ctx.font = '14px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText('v0.10', width - 20, height - 20);
+    ctx.fillText('v0.15', width - 20, height - 20);
 
     // 绘制距离进度条
     this.renderDistanceProgress();
@@ -708,6 +720,76 @@ class Game {
   }
 
   /**
+   * 渲染波次信息
+   * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
+   * @param {Number} width - 画布宽度
+   */
+  renderWaveInfo(ctx, width) {
+    const waveInfo = this.enemySystem.getWaveDisplayInfo();
+
+    ctx.save();
+
+    // 波次信息框位置（右上角）
+    const boxX = width - 250;
+    const boxY = 20;
+    const boxWidth = 230;
+    const boxHeight = 100;
+
+    // 绘制半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+    // 绘制边框
+    ctx.strokeStyle = waveInfo.waveState === 'WAVE_ACTIVE' ? '#FF3333' : '#00FFFF';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+    // 波次标题
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`波次 ${waveInfo.currentWave} / ${waveInfo.maxWaves}`, boxX + boxWidth / 2, boxY + 25);
+
+    // 状态文字
+    let statusColor = '#AAAAAA';
+    switch (waveInfo.waveState) {
+      case 'PREPARING':
+        statusColor = '#00FFFF';
+        break;
+      case 'WAVE_ACTIVE':
+        statusColor = '#FF3333';
+        break;
+      case 'WAVE_COMPLETE':
+        statusColor = '#00FF00';
+        break;
+      case 'VICTORY':
+        statusColor = '#FFD700';
+        break;
+    }
+
+    ctx.fillStyle = statusColor;
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText(waveInfo.statusText, boxX + boxWidth / 2, boxY + 50);
+
+    // 时间/敌人剩余
+    if (waveInfo.waveState === 'PREPARING') {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '16px monospace';
+      ctx.fillText(`准备时间: ${waveInfo.timeRemaining}秒`, boxX + boxWidth / 2, boxY + 75);
+    } else if (waveInfo.waveState === 'WAVE_ACTIVE') {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '16px monospace';
+      ctx.fillText(`剩余敌人: ${waveInfo.timeRemaining}`, boxX + boxWidth / 2, boxY + 75);
+    } else if (waveInfo.waveState === 'WAVE_COMPLETE') {
+      ctx.fillStyle = '#00FF00';
+      ctx.font = '16px monospace';
+      ctx.fillText('✓ 准备下一波', boxX + boxWidth / 2, boxY + 75);
+    }
+
+    ctx.restore();
+  }
+
+  /**
    * 渲染当前状态提示
    * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
    */
@@ -785,12 +867,17 @@ class Game {
     const helpLines = [
       '',
       '【游戏目标】',
-      '驾驶载具穿越废土，到达安全屋',
+      '驾驶载具穿越废土，击败10波敌人',
       '',
       '【操作说明】',
       '● 移动光标：悬停在资源节点上自动采集',
       '● 挖掘障碍：悬停在障碍物上进行挖掘',
       '● 自动战斗：炮塔自动攻击敌人',
+      '',
+      '【波次系统】',
+      '● 准备期：8秒安全时间采集资源',
+      '● 战斗期：消灭所有敌人完成波次',
+      '● 难度递增：每波敌人数量+2',
       '',
       '【资源说明】',
       '● 红色：弹药/能源（用于武器开火）',

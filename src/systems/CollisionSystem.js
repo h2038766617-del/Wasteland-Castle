@@ -34,9 +34,10 @@ export class CollisionSystem {
    * @param {ObjectPool} projectilePool - 子弹对象池
    * @param {Object} resources - 资源对象（用于击杀奖励）
    * @param {Array} damageNumbers - 伤害数字数组（可选）
+   * @param {ParticleSystem} particleSystem - 粒子系统（可选）
    * @returns {Object} { hits: Number, kills: Number }
    */
-  checkProjectileEnemyCollisions(projectiles, enemies, projectilePool, resources, damageNumbers = null) {
+  checkProjectileEnemyCollisions(projectiles, enemies, projectilePool, resources, damageNumbers = null, particleSystem = null) {
     let hits = 0;
     let kills = 0;
 
@@ -54,7 +55,7 @@ export class CollisionSystem {
           15 // 敌人半径（暂时硬编码）
         )) {
           // 处理碰撞
-          this.handleProjectileEnemyHit(projectile, enemy, projectilePool, resources, damageNumbers);
+          this.handleProjectileEnemyHit(projectile, enemy, projectilePool, resources, damageNumbers, particleSystem);
           hits++;
 
           // 检查敌人是否死亡
@@ -94,8 +95,9 @@ export class CollisionSystem {
    * @param {ObjectPool} projectilePool - 子弹对象池
    * @param {Object} resources - 资源对象
    * @param {Array} damageNumbers - 伤害数字数组（可选）
+   * @param {ParticleSystem} particleSystem - 粒子系统（可选）
    */
-  handleProjectileEnemyHit(projectile, enemy, projectilePool, resources, damageNumbers = null) {
+  handleProjectileEnemyHit(projectile, enemy, projectilePool, resources, damageNumbers = null, particleSystem = null) {
     // 对敌人造成伤害（使用 takeDamage 触发视觉效果）
     const isDead = enemy.takeDamage(projectile.damage);
 
@@ -120,7 +122,7 @@ export class CollisionSystem {
 
     // 检查敌人是否死亡
     if (isDead) {
-      this.handleEnemyDeath(enemy, resources);
+      this.handleEnemyDeath(enemy, resources, particleSystem);
     }
   }
 
@@ -128,8 +130,18 @@ export class CollisionSystem {
    * 处理敌人死亡
    * @param {Enemy} enemy - 死亡的敌人
    * @param {Object} resources - 资源对象
+   * @param {ParticleSystem} particleSystem - 粒子系统（可选）
    */
-  handleEnemyDeath(enemy, resources) {
+  handleEnemyDeath(enemy, resources, particleSystem = null) {
+    // 创建死亡爆炸粒子效果
+    if (particleSystem) {
+      particleSystem.createEnemyExplosion(
+        enemy.position.x,
+        enemy.position.y,
+        enemy.color || '#FF3333'
+      );
+    }
+
     // 标记为非活跃
     enemy.active = false;
 
@@ -141,8 +153,6 @@ export class CollisionSystem {
 
     // 更新统计
     this.stats.totalKills++;
-
-    // TODO: 触发死亡特效、音效
   }
 
   /**

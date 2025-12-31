@@ -54,6 +54,7 @@ class Game {
     this.isRunning = false;
     this.isPaused = false;
     this.isGameOver = false;
+    this.isVictory = false; // 胜利状态
     this.showHelp = false; // 帮助界面显示状态
 
     // 视觉效果
@@ -400,6 +401,9 @@ class Game {
 
     // 检查核心是否被摧毁
     this.checkGameOver();
+
+    // 检查是否胜利
+    this.checkVictory();
   }
 
   /**
@@ -416,6 +420,21 @@ class Game {
       this.isPaused = true;
       console.log('=== GAME OVER ===');
       console.log('核心被摧毁！');
+    }
+  }
+
+  /**
+   * 检查是否胜利
+   */
+  checkVictory() {
+    if (this.isVictory || this.isGameOver) return;
+
+    // 检查是否完成所有波次
+    if (this.enemySystem.waveState === 'VICTORY') {
+      this.isVictory = true;
+      this.isPaused = true;
+      console.log('=== VICTORY ===');
+      console.log('完成所有波次！');
     }
   }
 
@@ -485,6 +504,9 @@ class Game {
 
     // 渲染帮助界面（最顶层）
     this.renderHelpOverlay(this.ctx);
+
+    // 渲染胜利画面（最最顶层）
+    this.renderVictoryScreen(this.ctx);
   }
 
   /**
@@ -1014,6 +1036,54 @@ class Game {
   }
 
   /**
+   * 渲染胜利画面
+   * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
+   */
+  renderVictoryScreen(ctx) {
+    if (!this.isVictory) return;
+
+    const width = this.canvas.getWidth();
+    const height = this.canvas.getHeight();
+
+    ctx.save();
+
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(0, 0, width, height);
+
+    // 标题
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 72px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#000000';
+    ctx.shadowBlur = 10;
+    ctx.fillText('🎉 胜利！ 🎉', width / 2, height / 2 - 100);
+
+    // 副标题
+    ctx.fillStyle = '#00FF00';
+    ctx.font = 'bold 32px monospace';
+    ctx.fillText('完成所有10波敌人！', width / 2, height / 2 - 20);
+
+    // 统计数据
+    const collisionStats = this.collisionSystem.getStats();
+    const enemyStats = this.enemySystem.getStats();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '24px monospace';
+    ctx.fillText(`总击杀: ${collisionStats.totalKills}`, width / 2, height / 2 + 40);
+    ctx.fillText(`总伤害: ${collisionStats.totalDamage}`, width / 2, height / 2 + 70);
+    ctx.fillText(`前进距离: ${Math.floor(this.scrollSystem.getDistanceTraveled())} 米`, width / 2, height / 2 + 100);
+
+    // 提示
+    ctx.fillStyle = '#888888';
+    ctx.font = '20px monospace';
+    ctx.fillText('[R] 重新开始游戏', width / 2, height / 2 + 160);
+
+    ctx.restore();
+  }
+
+  /**
    * 更新 FPS
    */
   updateFPS() {
@@ -1072,6 +1142,7 @@ class Game {
     this.isGameOver = false;
     this.isPaused = false;
     this.showHelp = false;
+    this.isVictory = false;
 
     // 重置资源到初始值
     this.resources.red = 200;

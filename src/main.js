@@ -182,7 +182,7 @@ class Game {
         damage: 10,
         cooldown: 0.5,
         range: 300,
-        ammoCost: 1,
+        ammoCost: 0.5, // 从1减少到0.5（减少50%消耗）
         pattern: 'NEAREST'
       }
     });
@@ -199,7 +199,7 @@ class Game {
         damage: 50,
         cooldown: 2.0,
         range: 400,
-        ammoCost: 5,
+        ammoCost: 3, // 从5减少到3（减少40%消耗）
         pattern: 'NEAREST'
       }
     });

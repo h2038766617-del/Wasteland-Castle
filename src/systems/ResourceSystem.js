@@ -31,7 +31,7 @@ export class ResourceSystem {
 
     // 资源生成配置
     this.spawnTimer = 0;
-    this.spawnInterval = 5.0; // 每5秒尝试生成一个资源节点
+    this.spawnInterval = 3.0; // 每3秒尝试生成一个资源节点
     this.maxActiveNodes = 10; // 最大同时存在的资源节点数
 
     // 资源类型权重（生成概率）
@@ -113,15 +113,15 @@ export class ResourceSystem {
     let harvestTime = 2.0;
     switch (resourceType) {
       case 'RED':
-        amount = 10 + Math.floor(Math.random() * 10); // 10-20
+        amount = 15 + Math.floor(Math.random() * 15); // 15-30 (+50%)
         harvestTime = 1.5;
         break;
       case 'BLUE':
-        amount = 5 + Math.floor(Math.random() * 10); // 5-15
+        amount = 8 + Math.floor(Math.random() * 15); // 8-23 (+50%)
         harvestTime = 2.0;
         break;
       case 'GOLD':
-        amount = 3 + Math.floor(Math.random() * 5); // 3-8
+        amount = 5 + Math.floor(Math.random() * 7); // 5-12 (+50%)
         harvestTime = 3.0;
         break;
     }

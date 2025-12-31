@@ -33,7 +33,7 @@ export class ObstacleSystem {
 
     // 障碍物生成配置
     this.spawnTimer = 0;
-    this.spawnInterval = 8.0; // 每8秒尝试生成一个障碍物
+    this.spawnInterval = 15.0; // 每15秒尝试生成一个障碍物
     this.maxActiveObstacles = 8; // 最大同时存在的障碍物数
 
     // 障碍物类型权重
@@ -135,12 +135,12 @@ export class ObstacleSystem {
     switch (obstacleType) {
       case 'TREE':
         hp = 80;
-        digTime = 2.5;
+        digTime = 2.0; // 2.5 * 0.8 = 2.0 (-20%)
         rewardAmount = 15; // 建材
         break;
       case 'ROCK':
         hp = 120;
-        digTime = 4.0;
+        digTime = 3.2; // 4.0 * 0.8 = 3.2 (-20%)
         rewardAmount = 20; // 弹药
         break;
     }

@@ -37,29 +37,29 @@ export class EnemySystem {
     this.waveTimer = 0;
     this.waveDuration = 20; // 每波持续时间（秒）
     this.timeSinceLastSpawn = 0;
-    this.spawnInterval = 2.0; // 生成间隔（秒）
+    this.spawnInterval = 3.0; // 生成间隔（秒）
 
     // 敌人类型配置
     this.enemyTypes = {
       basic_grunt: {
-        hp: 50,
-        maxHp: 50,
+        hp: 40,
+        maxHp: 40,
         damage: 10,
         moveSpeed: 30,
         rewardRed: 5,
         rewardGold: 1
       },
       fast_runner: {
-        hp: 30,
-        maxHp: 30,
+        hp: 25,
+        maxHp: 25,
         damage: 5,
         moveSpeed: 60,
         rewardRed: 3,
         rewardGold: 2
       },
       heavy_tank: {
-        hp: 150,
-        maxHp: 150,
+        hp: 120,
+        maxHp: 120,
         damage: 20,
         moveSpeed: 15,
         rewardRed: 10,

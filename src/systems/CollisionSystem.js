@@ -33,9 +33,10 @@ export class CollisionSystem {
    * @param {Array<Enemy>} enemies - 敌人数组
    * @param {ObjectPool} projectilePool - 子弹对象池
    * @param {Object} resources - 资源对象（用于击杀奖励）
+   * @param {Array} damageNumbers - 伤害数字数组（可选）
    * @returns {Object} { hits: Number, kills: Number }
    */
-  checkProjectileEnemyCollisions(projectiles, enemies, projectilePool, resources) {
+  checkProjectileEnemyCollisions(projectiles, enemies, projectilePool, resources, damageNumbers = null) {
     let hits = 0;
     let kills = 0;
 
@@ -53,7 +54,7 @@ export class CollisionSystem {
           15 // 敌人半径（暂时硬编码）
         )) {
           // 处理碰撞
-          this.handleProjectileEnemyHit(projectile, enemy, projectilePool, resources);
+          this.handleProjectileEnemyHit(projectile, enemy, projectilePool, resources, damageNumbers);
           hits++;
 
           // 检查敌人是否死亡
@@ -92,10 +93,23 @@ export class CollisionSystem {
    * @param {Enemy} enemy - 敌人
    * @param {ObjectPool} projectilePool - 子弹对象池
    * @param {Object} resources - 资源对象
+   * @param {Array} damageNumbers - 伤害数字数组（可选）
    */
-  handleProjectileEnemyHit(projectile, enemy, projectilePool, resources) {
-    // 对敌人造成伤害
-    enemy.hp -= projectile.damage;
+  handleProjectileEnemyHit(projectile, enemy, projectilePool, resources, damageNumbers = null) {
+    // 对敌人造成伤害（使用 takeDamage 触发视觉效果）
+    const isDead = enemy.takeDamage(projectile.damage);
+
+    // 创建伤害数字
+    if (damageNumbers) {
+      damageNumbers.push({
+        damage: projectile.damage,
+        x: enemy.position.x,
+        y: enemy.position.y - 20,
+        velocity: -50, // 向上飘动速度（像素/秒）
+        life: 1.0, // 存活时间（秒）
+        opacity: 1.0
+      });
+    }
 
     // 更新统计
     this.stats.totalHits++;
@@ -105,7 +119,7 @@ export class CollisionSystem {
     projectilePool.release(projectile);
 
     // 检查敌人是否死亡
-    if (enemy.hp <= 0) {
+    if (isDead) {
       this.handleEnemyDeath(enemy, resources);
     }
   }

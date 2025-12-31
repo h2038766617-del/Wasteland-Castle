@@ -955,8 +955,42 @@ class Game {
    * 重启游戏
    */
   restart() {
-    // 重置所有游戏状态
+    // 重置游戏状态标志
+    this.isGameOver = false;
     this.isPaused = false;
+    this.showHelp = false;
+
+    // 重置资源到初始值
+    this.resources.red = 200;
+    this.resources.blue = 100;
+    this.resources.gold = 50;
+
+    // 清空视觉效果
+    this.damageNumbers = [];
+    this.particleSystem.clear();
+
+    // 重置各个系统
+    this.enemySystem.reset();
+    this.collisionSystem.resetStats();
+    this.weaponSystem.clearProjectiles();
+    this.scrollSystem.reset();
+    this.resourceSystem.reset();
+    this.obstacleSystem.reset();
+    this.safeHouseSystem.reset();
+
+    // 重新初始化安全屋旅程
+    this.safeHouseSystem.initJourney();
+
+    // 重置所有组件血量
+    const components = this.gridManager.getAllComponents();
+    for (const component of components) {
+      component.stats.hp = component.stats.maxHp;
+    }
+
+    // 重新计算邻接加成
+    this.buffSystem.recalculateBuffs(this.gridManager);
+
+    // 更新调试信息
     this.updateDebugInfo();
   }
 }

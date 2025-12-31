@@ -127,16 +127,14 @@ export class ResourceSystem {
     }
 
     // 从对象池获取节点并初始化
-    const node = this.nodePool.get();
+    const node = this.nodePool.acquire({
+      resourceType,
+      worldX,
+      worldY,
+      amount,
+      harvestTime
+    });
     if (node) {
-      node.init({
-        resourceType,
-        worldX,
-        worldY,
-        amount,
-        harvestTime
-      });
-
       this.stats.totalSpawned++;
     }
   }

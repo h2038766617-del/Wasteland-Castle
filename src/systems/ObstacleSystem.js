@@ -73,6 +73,11 @@ export class ObstacleSystem {
     };
 
     console.log('ObstacleSystem 初始化');
+
+    // 预生成初始障碍物（确保游戏启动时画面不静止）
+    for (let i = 0; i < 2; i++) {
+      this.trySpawnObstacle();
+    }
   }
 
   /**

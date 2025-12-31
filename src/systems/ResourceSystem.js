@@ -57,6 +57,11 @@ export class ResourceSystem {
     };
 
     console.log('ResourceSystem 初始化');
+
+    // 预生成初始资源节点（确保游戏启动时画面不静止）
+    for (let i = 0; i < 3; i++) {
+      this.trySpawnResourceNode();
+    }
   }
 
   /**

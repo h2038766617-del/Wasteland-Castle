@@ -53,7 +53,13 @@ export default class DroneCursor {
 
     // 采集/攻击属性（可升级）
     this.miningPower = 1.0;
-    this.attackPower = 1.0;
+    this.attackPower = 20; // 每秒伤害
+
+    // 攻击相关属性
+    this.attackRange = 80; // 攻击范围（像素）
+    this.attackCooldown = 0.15; // 攻击间隔（秒）
+    this.currentAttackCooldown = 0;
+    this.currentTarget = null; // 当前攻击目标
 
     console.log(`DroneCursor 初始化于 (${x_px}, ${y_px})`);
   }
@@ -264,5 +270,105 @@ export default class DroneCursor {
   reset(x_px, y_px) {
     this.position = { x: x_px, y: y_px };
     this.targetPos = { x: x_px, y: y_px };
+    this.currentTarget = null;
+    this.currentAttackCooldown = 0;
+  }
+
+  /**
+   * 更新攻击逻辑
+   * @param {number} deltaTime - 时间增量（秒）
+   * @param {Array} enemies - 敌人列表
+   * @returns {Object|null} 攻击结果 { target, damage } 或 null
+   */
+  updateAttack(deltaTime, enemies) {
+    // 更新冷却计时器
+    if (this.currentAttackCooldown > 0) {
+      this.currentAttackCooldown -= deltaTime;
+    }
+
+    // 如果当前目标失效（死亡或超出范围），清除目标
+    if (this.currentTarget && !this.currentTarget.active) {
+      this.currentTarget = null;
+    }
+
+    // 如果有当前目标，检查是否还在范围内
+    if (this.currentTarget) {
+      const distSq = Vector2.distanceSquared(this.position, this.currentTarget.position);
+      if (distSq > this.attackRange * this.attackRange) {
+        // 目标超出范围，清除目标
+        this.currentTarget = null;
+      }
+    }
+
+    // 寻找最近的敌人
+    if (!this.currentTarget) {
+      let nearestEnemy = null;
+      let nearestDistSq = Infinity;
+
+      for (const enemy of enemies) {
+        if (!enemy.active) continue;
+
+        const distSq = Vector2.distanceSquared(this.position, enemy.position);
+        if (distSq < this.attackRange * this.attackRange && distSq < nearestDistSq) {
+          nearestEnemy = enemy;
+          nearestDistSq = distSq;
+        }
+      }
+
+      this.currentTarget = nearestEnemy;
+    }
+
+    // 如果有目标且冷却完毕，执行攻击
+    if (this.currentTarget && this.currentAttackCooldown <= 0) {
+      this.currentAttackCooldown = this.attackCooldown;
+      return {
+        target: this.currentTarget,
+        damage: this.attackPower * this.attackCooldown // 伤害 = DPS * 攻击间隔
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * 渲染攻击视觉效果
+   * @param {CanvasRenderingContext2D} ctx
+   */
+  renderAttackEffect(ctx) {
+    if (!this.currentTarget) return;
+
+    ctx.save();
+
+    // 绘制激光束（从光标到敌人）
+    const targetPos = this.currentTarget.position;
+
+    // 激光束主线
+    ctx.strokeStyle = '#FF0000';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#FF0000';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(this.position.x, this.position.y);
+    ctx.lineTo(targetPos.x, targetPos.y);
+    ctx.stroke();
+
+    // 激光束光晕
+    ctx.strokeStyle = '#FF666688';
+    ctx.lineWidth = 4;
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.moveTo(this.position.x, this.position.y);
+    ctx.lineTo(targetPos.x, targetPos.y);
+    ctx.stroke();
+
+    // 攻击范围指示圈（淡显示）
+    ctx.strokeStyle = '#FF000033';
+    ctx.lineWidth = 1;
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(this.position.x, this.position.y, this.attackRange, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.restore();
   }
 }

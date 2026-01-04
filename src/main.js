@@ -365,6 +365,52 @@ class Game {
     // 获取所有活跃敌人
     const enemies = this.enemySystem.getActiveEnemies();
 
+    // 光标攻击敌人（玩家主要输出）
+    const attackResult = this.droneCursor.updateAttack(deltaTime, enemies);
+    if (attackResult) {
+      const { target, damage } = attackResult;
+
+      // 对敌人造成伤害
+      target.hp -= damage;
+
+      // 添加浮动伤害数字
+      this.damageNumbers.push({
+        x: target.position.x,
+        y: target.position.y - 20,
+        damage: Math.floor(damage),
+        alpha: 1.0,
+        velocity: { x: (Math.random() - 0.5) * 50, y: -100 }
+      });
+
+      // 添加击中粒子效果
+      this.particleSystem.createHitEffect(
+        target.position.x,
+        target.position.y,
+        '#FF6600'
+      );
+
+      // 检查敌人是否死亡
+      if (target.hp <= 0) {
+        // 给予奖励
+        this.resources.red += target.rewardRed;
+        this.resources.gold += target.rewardGold;
+
+        // 创建死亡粒子效果
+        this.particleSystem.createExplosion(
+          target.position.x,
+          target.position.y,
+          '#FF4444',
+          15
+        );
+
+        // 归还到对象池
+        this.enemySystem.onEnemyDeath(target);
+
+        // 更新统计
+        this.collisionSystem.stats.totalKills++;
+      }
+    }
+
     // 更新武器系统（寻找目标并发射）
     this.weaponSystem.update(deltaTime, enemies, this.mousePos, this.resources);
 
@@ -480,6 +526,9 @@ class Game {
 
     // 渲染无人机光标
     this.droneCursor.render(this.ctx);
+
+    // 渲染光标攻击效果（激光束）
+    this.droneCursor.renderAttackEffect(this.ctx);
 
     // 渲染资源掉落动画（在最上层）
     this.resourceSystem.renderResourceDrops(this.ctx);
@@ -1152,6 +1201,10 @@ class Game {
     // 清空视觉效果
     this.damageNumbers = [];
     this.particleSystem.clear();
+
+    // 重置光标攻击状态
+    this.droneCursor.currentTarget = null;
+    this.droneCursor.currentAttackCooldown = 0;
 
     // 重置各个系统
     this.enemySystem.reset();

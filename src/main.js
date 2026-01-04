@@ -439,7 +439,7 @@ class Game {
 
     // 碰撞检测：敌人-组件
     const components = this.gridManager.getAllComponents();
-    const attackResult = this.collisionSystem.checkEnemyComponentCollisions(
+    const componentAttackResult = this.collisionSystem.checkEnemyComponentCollisions(
       enemies,
       components,
       this.gridManager

@@ -58,6 +58,10 @@ class Game {
     this.isVictory = false; // 胜利状态
     this.showHelp = false; // 帮助界面显示状态
 
+    // 游戏状态机（核心循环）
+    this.gameState = 'SAFEHOUSE'; // SAFEHOUSE（安全屋整备） / JOURNEY（旅途战斗）
+    this.journeyNumber = 0; // 当前旅途编号（难度递增）
+
     // 视觉效果
     this.damageNumbers = []; // 浮动伤害数字
 
@@ -354,13 +358,13 @@ class Game {
 
     // 键盘事件（用于调试）
     window.addEventListener('keydown', (e) => {
-      // 空格键：离开安全屋 或 暂停/继续
+      // 空格键：切换安全屋/旅途状态
       if (e.code === 'Space') {
-        if (this.safeHouseSystem.isInSafeHouse) {
-          // 在安全屋中，按空格离开
-          this.safeHouseSystem.leaveSafeHouse();
-        } else {
-          // 不在安全屋，暂停/继续
+        if (this.gameState === 'SAFEHOUSE') {
+          // 离开安全屋，开始旅途
+          this.startJourney();
+        } else if (this.gameState === 'JOURNEY') {
+          // 在旅途中，暂停/继续
           this.togglePause();
         }
       }
@@ -449,6 +453,19 @@ class Game {
    * @param {number} deltaTime - 时间增量（秒）
    */
   update(deltaTime) {
+    // 更新无人机光标（安全屋和旅途都需要）
+    this.droneCursor.update(deltaTime, this.mousePos);
+
+    // 更新视觉效果（安全屋和旅途都需要）
+    this.updateDamageNumbers(deltaTime);
+    this.particleSystem.update(deltaTime);
+
+    // 安全屋状态：不更新战斗系统
+    if (this.gameState === 'SAFEHOUSE') {
+      return;
+    }
+
+    // 旅途状态：更新所有战斗系统
     // 更新横版卷轴系统
     this.scrollSystem.update(deltaTime);
 
@@ -460,9 +477,6 @@ class Game {
 
     // 更新安全屋系统
     this.safeHouseSystem.update(deltaTime);
-
-    // 更新无人机光标
-    this.droneCursor.update(deltaTime, this.mousePos);
 
     // 更新敌人系统（生成、AI）
     this.enemySystem.update(deltaTime);
@@ -538,10 +552,6 @@ class Game {
       this.enemySystem  // 传递 enemySystem 以正确处理敌人死亡
     );
 
-    // 更新视觉效果
-    this.updateDamageNumbers(deltaTime);
-    this.particleSystem.update(deltaTime);
-
     // 碰撞检测：敌人-组件
     const components = this.gridManager.getAllComponents();
     const componentAttackResult = this.collisionSystem.checkEnemyComponentCollisions(
@@ -575,18 +585,66 @@ class Game {
   }
 
   /**
-   * 检查是否胜利
+   * 检查是否完成旅途
    */
   checkVictory() {
-    if (this.isVictory || this.isGameOver) return;
+    if (this.isGameOver || this.gameState !== 'JOURNEY') return;
 
     // 检查是否完成所有波次
     if (this.enemySystem.waveState === 'VICTORY') {
-      this.isVictory = true;
-      this.isPaused = true;
-      console.log('=== VICTORY ===');
-      console.log('完成所有波次！');
+      // 完成旅途，回到安全屋
+      this.returnToSafeHouse();
     }
+  }
+
+  /**
+   * 开始旅途
+   */
+  startJourney() {
+    console.log(`=== 开始旅途 #${this.journeyNumber + 1} ===`);
+
+    this.gameState = 'JOURNEY';
+    this.journeyNumber++;
+
+    // 重置敌人系统
+    this.enemySystem.reset();
+
+    // 重置各个战斗系统
+    this.collisionSystem.resetStats();
+    this.weaponSystem.clearProjectiles();
+    this.scrollSystem.reset();
+    this.resourceSystem.reset();
+    this.obstacleSystem.reset();
+
+    // 清空视觉效果
+    this.damageNumbers = [];
+    this.particleSystem.clear();
+
+    // 重置光标攻击状态
+    this.droneCursor.currentTarget = null;
+    this.droneCursor.currentAttackCooldown = 0;
+
+    console.log(`难度等级: ${this.journeyNumber}`);
+  }
+
+  /**
+   * 回到安全屋
+   */
+  returnToSafeHouse() {
+    console.log('=== 旅途完成，回到安全屋 ===');
+    console.log(`完成波次: ${this.enemySystem.currentWave - 1}`);
+    console.log(`总击杀: ${this.collisionSystem.stats.totalKills}`);
+    console.log(`总伤害: ${this.collisionSystem.stats.totalDamage}`);
+
+    this.gameState = 'SAFEHOUSE';
+
+    // 奖励资源（根据表现）
+    const killBonus = this.collisionSystem.stats.totalKills * 2;
+    this.resources.gold += killBonus;
+    console.log(`获得金币奖励: ${killBonus}`);
+
+    // 给一些测试组件（临时）
+    this.addTestComponentsToInventory();
   }
 
   /**
@@ -654,7 +712,9 @@ class Game {
     this.renderUI();
 
     // 渲染安全屋 UI（全屏，在最上层）
-    this.safeHouseSystem.renderSafeHouseUI(this.ctx);
+    if (this.gameState === 'SAFEHOUSE') {
+      this.renderSafeHouseState(this.ctx);
+    }
 
     // 渲染帮助界面（最顶层）
     this.renderHelpOverlay(this.ctx);
@@ -665,8 +725,10 @@ class Game {
     // 渲染拖拽预览（最上层）
     this.dragSystem.renderPreview(this.ctx);
 
-    // 渲染胜利画面（最最顶层）
-    this.renderVictoryScreen(this.ctx);
+    // 渲染游戏结束画面（最最顶层）
+    if (this.isGameOver) {
+      this.renderGameOverScreen(this.ctx);
+    }
   }
 
   /**
@@ -1196,11 +1258,73 @@ class Game {
   }
 
   /**
-   * 渲染胜利画面
+   * 渲染安全屋状态UI
    * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
    */
-  renderVictoryScreen(ctx) {
-    if (!this.isVictory) return;
+  renderSafeHouseState(ctx) {
+    const width = this.canvas.getWidth();
+    const height = this.canvas.getHeight();
+
+    ctx.save();
+
+    // 半透明黑色背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(0, 0, width, height);
+
+    // 标题
+    ctx.fillStyle = '#00FFFF';
+    ctx.font = 'bold 60px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#000000';
+    ctx.shadowBlur = 15;
+    ctx.fillText('安全屋整备', width / 2, height / 2 - 180);
+
+    // 旅途编号
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 28px monospace';
+    ctx.fillText(`旅途 #${this.journeyNumber + 1}`, width / 2, height / 2 - 120);
+
+    // 提示信息
+    ctx.fillStyle = '#AAAAAA';
+    ctx.font = '22px monospace';
+    const instructions = [
+      '[ 拖拽组件到网格拼装载具 ]',
+      '[ 调整布局优化邻接加成 ]',
+      '[ 准备好后按 SPACE 出发 ]'
+    ];
+
+    let y = height / 2 - 40;
+    for (const text of instructions) {
+      ctx.fillText(text, width / 2, y);
+      y += 35;
+    }
+
+    // 资源统计
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 24px monospace';
+    ctx.fillText(
+      `金币: ${Math.floor(this.resources.gold)}  弹药: ${Math.floor(this.resources.red)}  建材: ${Math.floor(this.resources.blue)}`,
+      width / 2,
+      height / 2 + 100
+    );
+
+    // 出发按钮
+    ctx.fillStyle = '#00FF00';
+    ctx.font = 'bold 32px monospace';
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#00FF00';
+    ctx.fillText('[ 按 SPACE 开始旅途 ]', width / 2, height / 2 + 170);
+
+    ctx.restore();
+  }
+
+  /**
+   * 渲染游戏结束画面
+   * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
+   */
+  renderGameOverScreen(ctx) {
+    if (!this.isGameOver) return;
 
     const width = this.canvas.getWidth();
     const height = this.canvas.getHeight();
@@ -1212,18 +1336,18 @@ class Game {
     ctx.fillRect(0, 0, width, height);
 
     // 标题
-    ctx.fillStyle = '#FFD700';
+    ctx.fillStyle = '#FF0000';
     ctx.font = 'bold 72px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.shadowColor = '#000000';
     ctx.shadowBlur = 10;
-    ctx.fillText('🎉 胜利！ 🎉', width / 2, height / 2 - 100);
+    ctx.fillText('💀 游戏结束 💀', width / 2, height / 2 - 100);
 
     // 副标题
-    ctx.fillStyle = '#00FF00';
+    ctx.fillStyle = '#FF6666';
     ctx.font = 'bold 32px monospace';
-    ctx.fillText('完成所有10波敌人！', width / 2, height / 2 - 20);
+    ctx.fillText('核心被摧毁！', width / 2, height / 2 - 20);
 
     // 统计数据
     const collisionStats = this.collisionSystem.getStats();
@@ -1303,6 +1427,10 @@ class Game {
     this.isPaused = false;
     this.showHelp = false;
     this.isVictory = false;
+
+    // 重置游戏状态机
+    this.gameState = 'SAFEHOUSE'; // 重新从安全屋开始
+    this.journeyNumber = 0; // 重置旅途编号
 
     // 重置资源到初始值
     this.resources.red = 200;

@@ -20,6 +20,7 @@ import { ResourceSystem } from './systems/ResourceSystem.js';
 import { ObstacleSystem } from './systems/ObstacleSystem.js';
 import { SafeHouseSystem } from './systems/SafeHouseSystem.js';
 import { ParticleSystem } from './systems/ParticleSystem.js';
+import { DragSystem } from './ui/DragSystem.js';
 import ObjectPool from './systems/ObjectPool.js';
 import Component from './entities/Component.js';
 import Projectile from './entities/Projectile.js';
@@ -144,6 +145,12 @@ class Game {
     // 初始化粒子系统
     this.particleSystem = new ParticleSystem();
 
+    // 初始化拖拽系统
+    this.dragSystem = new DragSystem(this.gridManager, this.canvas);
+
+    // 添加测试组件到仓库
+    this.addTestComponentsToInventory();
+
     // 初始化无人机光标
     const centerX = this.canvas.getWidth() / 2;
     const centerY = this.canvas.getHeight() / 2;
@@ -232,6 +239,56 @@ class Game {
   }
 
   /**
+   * 添加测试组件到仓库
+   */
+  addTestComponentsToInventory() {
+    // 添加一些测试组件到仓库，供玩家拖拽测试
+
+    // 基础武器
+    const weapon = new Component({
+      id: 'weapon_inventory_1',
+      type: ComponentType.WEAPON,
+      gridShape: [[0, 0]],
+      stats: {
+        hp: 80,
+        maxHp: 80,
+        damage: 10,
+        cooldown: 0.5,
+        range: 300,
+        ammoCost: 0.5,
+        pattern: 'NEAREST'
+      }
+    });
+    this.dragSystem.addToInventory(weapon);
+
+    // 装甲板
+    const armor = new Component({
+      id: 'armor_inventory_1',
+      type: ComponentType.ARMOR,
+      gridShape: [[0, 0]],
+      stats: {
+        hp: 200,
+        maxHp: 200
+      }
+    });
+    this.dragSystem.addToInventory(armor);
+
+    // 增压器
+    const booster = new Component({
+      id: 'booster_inventory_1',
+      type: ComponentType.BOOSTER,
+      gridShape: [[0, 0]],
+      stats: {
+        hp: 50,
+        maxHp: 50
+      }
+    });
+    this.dragSystem.addToInventory(booster);
+
+    console.log(`已添加${this.dragSystem.inventoryItems.length}个组件到仓库`);
+  }
+
+  /**
    * 设置输入监听
    */
   setupInput() {
@@ -240,10 +297,58 @@ class Game {
       this.mousePos.x = e.clientX;
       this.mousePos.y = e.clientY;
 
+      // 如果正在拖拽，更新拖拽预览
+      if (this.dragSystem.isDragging()) {
+        this.dragSystem.updateDrag(this.mousePos);
+      }
+
       // 更新调试信息
       if (DEBUG.SHOW_DRONE_POS) {
         document.getElementById('mousePos').textContent =
           `${Math.floor(this.mousePos.x)}, ${Math.floor(this.mousePos.y)}`;
+      }
+    });
+
+    // 鼠标按下
+    window.addEventListener('mousedown', (e) => {
+      // 检查是否点击了仓库中的组件
+      const component = this.dragSystem.getInventoryComponentAtMouse(this.mousePos);
+      if (component) {
+        // 从仓库移除组件
+        this.dragSystem.removeFromInventory(component);
+
+        // 开始拖拽
+        this.dragSystem.startDrag(component, this.mousePos, this.isPaused);
+
+        // 暂停游戏
+        this.isPaused = true;
+        console.log('游戏已暂停（拖拽组件）');
+      }
+    });
+
+    // 鼠标抬起
+    window.addEventListener('mouseup', (e) => {
+      if (this.dragSystem.isDragging()) {
+        // 尝试放置组件
+        const result = this.dragSystem.endDrag();
+
+        if (result) {
+          // 成功放置
+          console.log('组件已放置到网格');
+
+          // 重新计算邻接加成
+          this.buffSystem.recalculateBuffs(this.gridManager);
+        } else {
+          // 放置失败，组件回到仓库
+          const component = this.dragSystem.draggedComponent;
+          if (component) {
+            this.dragSystem.addToInventory(component);
+          }
+        }
+
+        // 恢复之前的游戏状态
+        this.isPaused = this.dragSystem.previousPausedState;
+        console.log('游戏已恢复');
       }
     });
 
@@ -553,6 +658,12 @@ class Game {
 
     // 渲染帮助界面（最顶层）
     this.renderHelpOverlay(this.ctx);
+
+    // 渲染组件仓库（UI层）
+    this.dragSystem.renderInventory(this.ctx);
+
+    // 渲染拖拽预览（最上层）
+    this.dragSystem.renderPreview(this.ctx);
 
     // 渲染胜利画面（最最顶层）
     this.renderVictoryScreen(this.ctx);
@@ -1214,9 +1325,13 @@ class Game {
     this.resourceSystem.reset();
     this.obstacleSystem.reset();
     this.safeHouseSystem.reset();
+    this.dragSystem.reset();
 
     // 重新初始化安全屋旅程
     this.safeHouseSystem.initJourney();
+
+    // 重新添加测试组件到仓库
+    this.addTestComponentsToInventory();
 
     // 重置所有组件血量
     const components = this.gridManager.getAllComponents();

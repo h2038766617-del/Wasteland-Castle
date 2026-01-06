@@ -21,6 +21,7 @@ import { ObstacleSystem } from './systems/ObstacleSystem.js';
 import { SafeHouseSystem } from './systems/SafeHouseSystem.js';
 import { ParticleSystem } from './systems/ParticleSystem.js';
 import { DragSystem } from './ui/DragSystem.js';
+import { ShopSystem } from './systems/ShopSystem.js';
 import ObjectPool from './systems/ObjectPool.js';
 import Component from './entities/Component.js';
 import Projectile from './entities/Projectile.js';
@@ -151,6 +152,10 @@ class Game {
 
     // 初始化拖拽系统
     this.dragSystem = new DragSystem(this.gridManager, this.canvas);
+
+    // 初始化商店系统
+    this.shopSystem = new ShopSystem();
+    this.shopSystem.refreshShop(false); // 初始化商店商品
 
     // 添加测试组件到仓库
     this.addTestComponentsToInventory();
@@ -315,6 +320,28 @@ class Game {
 
     // 鼠标按下
     window.addEventListener('mousedown', (e) => {
+      // 在安全屋状态，检查商店交互
+      if (this.gameState === 'SAFEHOUSE' && e.button === 0) { // 左键
+        // 检查刷新按钮
+        if (this.isClickingRefreshButton(this.mousePos)) {
+          if (this.shopSystem.refreshWithCost(this.resources)) {
+            console.log('商店已刷新');
+          }
+          return;
+        }
+
+        // 检查商品点击
+        const clickedItem = this.getShopItemAtMouse(this.mousePos);
+        if (clickedItem) {
+          const component = this.shopSystem.purchase(clickedItem.id, this.resources);
+          if (component) {
+            this.dragSystem.addToInventory(component);
+            console.log('购买成功，组件已添加到仓库');
+          }
+          return;
+        }
+      }
+
       // 检查是否点击了仓库中的组件
       const component = this.dragSystem.getInventoryComponentAtMouse(this.mousePos);
       if (component) {
@@ -327,6 +354,20 @@ class Game {
         // 暂停游戏
         this.isPaused = true;
         console.log('游戏已暂停（拖拽组件）');
+      }
+    });
+
+    // 鼠标右键 - 锁定商品
+    window.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+
+      // 在安全屋状态，检查商品锁定
+      if (this.gameState === 'SAFEHOUSE') {
+        const clickedItem = this.getShopItemAtMouse(this.mousePos);
+        if (clickedItem) {
+          this.shopSystem.toggleLock(clickedItem.id);
+          console.log(`商品 ${clickedItem.locked ? '已解锁' : '已锁定'}`);
+        }
       }
     });
 
@@ -384,6 +425,60 @@ class Game {
         this.showHelp = !this.showHelp;
       }
     });
+  }
+
+  /**
+   * 检查是否点击了刷新按钮
+   * @param {{x: number, y: number}} mousePos - 鼠标位置
+   * @returns {Boolean}
+   */
+  isClickingRefreshButton(mousePos) {
+    const width = this.canvas.getWidth();
+    const shopX = width - 320;
+    const shopY = 20;
+    const shopWidth = 300;
+    const refreshButtonY = shopY + 60;
+
+    return (
+      mousePos.x >= shopX + 10 &&
+      mousePos.x <= shopX + shopWidth - 10 &&
+      mousePos.y >= refreshButtonY &&
+      mousePos.y <= refreshButtonY + 35
+    );
+  }
+
+  /**
+   * 获取鼠标位置下的商品
+   * @param {{x: number, y: number}} mousePos - 鼠标位置
+   * @returns {Object|null} 商品对象或null
+   */
+  getShopItemAtMouse(mousePos) {
+    const width = this.canvas.getWidth();
+    const shopX = width - 320;
+    const shopY = 20;
+    const shopWidth = 300;
+    const refreshButtonY = shopY + 60;
+    const items = this.shopSystem.getItems();
+
+    let itemY = refreshButtonY + 50;
+    const itemHeight = 100;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+
+      if (
+        mousePos.x >= shopX + 10 &&
+        mousePos.x <= shopX + shopWidth - 10 &&
+        mousePos.y >= itemY &&
+        mousePos.y <= itemY + itemHeight
+      ) {
+        return item;
+      }
+
+      itemY += itemHeight + 10;
+    }
+
+    return null;
   }
 
   /**
@@ -609,6 +704,9 @@ class Game {
     // 重置敌人系统
     this.enemySystem.reset();
 
+    // 设置难度（基于旅途编号）
+    this.enemySystem.setDifficulty(this.journeyNumber);
+
     // 重置各个战斗系统
     this.collisionSystem.resetStats();
     this.weaponSystem.clearProjectiles();
@@ -642,6 +740,9 @@ class Game {
     const killBonus = this.collisionSystem.stats.totalKills * 2;
     this.resources.gold += killBonus;
     console.log(`获得金币奖励: ${killBonus}`);
+
+    // 刷新商店（保留锁定的商品）
+    this.shopSystem.refreshShop(true);
 
     // 给一些测试组件（临时）
     this.addTestComponentsToInventory();
@@ -1316,7 +1417,143 @@ class Game {
     ctx.shadowColor = '#00FF00';
     ctx.fillText('[ 按 SPACE 开始旅途 ]', width / 2, height / 2 + 170);
 
+    // 渲染商店UI
+    this.renderShopUI(ctx);
+
     ctx.restore();
+  }
+
+  /**
+   * 渲染商店UI
+   * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
+   */
+  renderShopUI(ctx) {
+    const width = this.canvas.getWidth();
+    const height = this.canvas.getHeight();
+
+    // 商店面板（右侧）
+    const shopX = width - 320;
+    const shopY = 20;
+    const shopWidth = 300;
+    const shopHeight = height - 40;
+
+    ctx.save();
+    ctx.shadowBlur = 0;
+
+    // 商店背景
+    ctx.fillStyle = 'rgba(20, 20, 30, 0.9)';
+    ctx.fillRect(shopX, shopY, shopWidth, shopHeight);
+
+    // 商店边框
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(shopX, shopY, shopWidth, shopHeight);
+
+    // 商店标题
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('商店', shopX + shopWidth / 2, shopY + 30);
+
+    // 刷新按钮
+    const refreshButtonY = shopY + 60;
+    const canRefresh = this.shopSystem.canRefresh(this.resources);
+    ctx.fillStyle = canRefresh ? '#4CAF50' : '#666666';
+    ctx.fillRect(shopX + 10, refreshButtonY, shopWidth - 20, 35);
+
+    ctx.fillStyle = canRefresh ? '#FFFFFF' : '#999999';
+    ctx.font = '16px monospace';
+    ctx.fillText(`刷新 (${this.shopSystem.refreshCost} 金币)`, shopX + shopWidth / 2, refreshButtonY + 22);
+
+    // 渲染商品列表
+    const items = this.shopSystem.getItems();
+    let itemY = refreshButtonY + 50;
+
+    ctx.textAlign = 'left';
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const itemHeight = 100;
+
+      // 商品背景
+      const canBuy = this.resources.gold >= item.price;
+      ctx.fillStyle = item.locked ? 'rgba(100, 100, 50, 0.3)' : 'rgba(40, 40, 50, 0.8)';
+      ctx.fillRect(shopX + 10, itemY, shopWidth - 20, itemHeight);
+
+      // 商品边框
+      ctx.strokeStyle = canBuy ? '#00FF00' : '#666666';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(shopX + 10, itemY, shopWidth - 20, itemHeight);
+
+      // 组件类型
+      ctx.fillStyle = this.getComponentColor(item.component.type);
+      ctx.font = 'bold 18px monospace';
+      ctx.fillText(item.component.type, shopX + 20, itemY + 25);
+
+      // 品质
+      ctx.fillStyle = this.getQualityColor(item.component.quality);
+      ctx.font = '14px monospace';
+      ctx.fillText(item.component.quality.toUpperCase(), shopX + 20, itemY + 45);
+
+      // 属性
+      ctx.fillStyle = '#CCCCCC';
+      ctx.font = '12px monospace';
+      ctx.fillText(`HP: ${item.component.hp}`, shopX + 20, itemY + 65);
+
+      // 价格
+      ctx.fillStyle = canBuy ? '#FFD700' : '#999999';
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(`${item.price} 金币`, shopX + 20, itemY + 85);
+
+      // 锁定标志
+      if (item.locked) {
+        ctx.fillStyle = '#FFD700';
+        ctx.font = '20px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText('🔒', shopX + shopWidth - 20, itemY + 25);
+        ctx.textAlign = 'left';
+      }
+
+      itemY += itemHeight + 10;
+    }
+
+    // 提示信息
+    ctx.fillStyle = '#AAAAAA';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('点击商品购买', shopX + shopWidth / 2, height - 60);
+    ctx.fillText('右键锁定商品', shopX + shopWidth / 2, height - 40);
+
+    ctx.restore();
+  }
+
+  /**
+   * 获取组件类型颜色
+   * @param {String} type - 组件类型
+   * @returns {String}
+   */
+  getComponentColor(type) {
+    const colors = {
+      CORE: '#FF6B6B',
+      WEAPON: '#4ECDC4',
+      ARMOR: '#45B7D1',
+      BOOSTER: '#FFA07A'
+    };
+    return colors[type] || '#FFFFFF';
+  }
+
+  /**
+   * 获取品质颜色
+   * @param {String} quality - 品质
+   * @returns {String}
+   */
+  getQualityColor(quality) {
+    const colors = {
+      common: '#AAAAAA',
+      uncommon: '#4CAF50',
+      rare: '#2196F3',
+      epic: '#9C27B0'
+    };
+    return colors[quality] || '#FFFFFF';
   }
 
   /**

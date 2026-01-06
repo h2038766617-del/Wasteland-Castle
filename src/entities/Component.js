@@ -29,6 +29,7 @@ export default class Component {
     // 基础属性
     this.id = config.id || `component_${Date.now()}`;
     this.type = config.type || ComponentType.ARMOR;
+    this.quality = config.quality || 'common'; // 品质：common, uncommon, rare, epic
 
     // 网格形状（相对坐标）
     // 例如：[[0,0], [1,0]] 表示水平 1x2

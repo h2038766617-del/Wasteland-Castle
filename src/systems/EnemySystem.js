@@ -74,6 +74,9 @@ export class EnemySystem {
       }
     };
 
+    // 难度系数（基于旅途编号）
+    this.difficultyMultiplier = 1.0;
+
     // 统计信息
     this.stats = {
       totalSpawned: 0,
@@ -209,6 +212,17 @@ export class EnemySystem {
       return;
     }
 
+    // 应用难度系数（基于旅途编号）
+    const scaledConfig = {
+      ...config,
+      hp: Math.floor(config.hp * this.difficultyMultiplier),
+      maxHp: Math.floor(config.maxHp * this.difficultyMultiplier),
+      damage: Math.floor(config.damage * this.difficultyMultiplier),
+      moveSpeed: config.moveSpeed * (1 + (this.difficultyMultiplier - 1) * 0.5), // 移速增长减半
+      rewardRed: Math.floor(config.rewardRed * this.difficultyMultiplier),
+      rewardGold: Math.floor(config.rewardGold * this.difficultyMultiplier)
+    };
+
     // 随机生成位置（屏幕边缘）
     const spawnPos = this.getRandomSpawnPosition();
 
@@ -216,7 +230,7 @@ export class EnemySystem {
     const enemy = this.enemyPool.acquire({
       type: type,
       position: spawnPos,
-      ...config
+      ...scaledConfig
     });
 
     // 更新统计
@@ -410,5 +424,15 @@ export class EnemySystem {
     this.stats.totalSpawned = 0;
     this.stats.totalKilled = 0;
     this.stats.currentAlive = 0;
+  }
+
+  /**
+   * 设置难度系数（基于旅途编号）
+   * @param {Number} journeyNumber - 旅途编号（从1开始）
+   */
+  setDifficulty(journeyNumber) {
+    // 每次旅途增加20%难度
+    this.difficultyMultiplier = 1 + (journeyNumber - 1) * 0.2;
+    console.log(`旅途 #${journeyNumber}：难度系数 = ${this.difficultyMultiplier.toFixed(2)}x`);
   }
 }

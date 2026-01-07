@@ -21,6 +21,8 @@ import { ObstacleSystem } from './systems/ObstacleSystem.js';
 import { SafeHouseSystem } from './systems/SafeHouseSystem.js';
 import { ParticleSystem } from './systems/ParticleSystem.js';
 import { DragSystem } from './ui/DragSystem.js';
+import { ShopSystem } from './systems/ShopSystem.js';
+import { RepairSystem } from './systems/RepairSystem.js';
 import ObjectPool from './systems/ObjectPool.js';
 import Component from './entities/Component.js';
 import Projectile from './entities/Projectile.js';
@@ -151,6 +153,13 @@ class Game {
 
     // 初始化拖拽系统
     this.dragSystem = new DragSystem(this.gridManager, this.canvas);
+
+    // 初始化商店系统
+    this.shopSystem = new ShopSystem();
+    this.shopSystem.refreshShop(false); // 初始化商店商品
+
+    // 初始化修复系统
+    this.repairSystem = new RepairSystem(this.gridManager);
 
     // 添加测试组件到仓库
     this.addTestComponentsToInventory();
@@ -315,6 +324,46 @@ class Game {
 
     // 鼠标按下
     window.addEventListener('mousedown', (e) => {
+      // 在安全屋状态，检查商店和修复交互
+      if (this.gameState === 'SAFEHOUSE' && e.button === 0) { // 左键
+        // 检查一键修复按钮
+        if (this.isClickingRepairAllButton(this.mousePos)) {
+          const result = this.repairSystem.repairAll(this.resources);
+          if (result.repaired > 0) {
+            console.log(`修复成功: ${result.repaired} 个组件, 消耗 ${result.cost} 建材`);
+          }
+          return;
+        }
+
+        // 检查单个组件修复
+        const clickedDamagedComponent = this.getRepairComponentAtMouse(this.mousePos);
+        if (clickedDamagedComponent) {
+          if (this.repairSystem.repairComponent(clickedDamagedComponent.component, this.resources)) {
+            console.log('组件修复成功');
+          }
+          return;
+        }
+
+        // 检查刷新按钮
+        if (this.isClickingRefreshButton(this.mousePos)) {
+          if (this.shopSystem.refreshWithCost(this.resources)) {
+            console.log('商店已刷新');
+          }
+          return;
+        }
+
+        // 检查商品点击
+        const clickedItem = this.getShopItemAtMouse(this.mousePos);
+        if (clickedItem) {
+          const component = this.shopSystem.purchase(clickedItem.id, this.resources);
+          if (component) {
+            this.dragSystem.addToInventory(component);
+            console.log('购买成功，组件已添加到仓库');
+          }
+          return;
+        }
+      }
+
       // 检查是否点击了仓库中的组件
       const component = this.dragSystem.getInventoryComponentAtMouse(this.mousePos);
       if (component) {
@@ -327,6 +376,20 @@ class Game {
         // 暂停游戏
         this.isPaused = true;
         console.log('游戏已暂停（拖拽组件）');
+      }
+    });
+
+    // 鼠标右键 - 锁定商品
+    window.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+
+      // 在安全屋状态，检查商品锁定
+      if (this.gameState === 'SAFEHOUSE') {
+        const clickedItem = this.getShopItemAtMouse(this.mousePos);
+        if (clickedItem) {
+          this.shopSystem.toggleLock(clickedItem.id);
+          console.log(`商品 ${clickedItem.locked ? '已解锁' : '已锁定'}`);
+        }
       }
     });
 
@@ -384,6 +447,112 @@ class Game {
         this.showHelp = !this.showHelp;
       }
     });
+  }
+
+  /**
+   * 检查是否点击了一键修复按钮
+   * @param {{x: number, y: number}} mousePos - 鼠标位置
+   * @returns {Boolean}
+   */
+  isClickingRepairAllButton(mousePos) {
+    const repairX = 20;
+    const repairY = 20;
+    const repairWidth = 300;
+    const repairAllButtonY = repairY + 60;
+
+    return (
+      mousePos.x >= repairX + 10 &&
+      mousePos.x <= repairX + repairWidth - 10 &&
+      mousePos.y >= repairAllButtonY &&
+      mousePos.y <= repairAllButtonY + 40
+    );
+  }
+
+  /**
+   * 获取鼠标位置下的受损组件
+   * @param {{x: number, y: number}} mousePos - 鼠标位置
+   * @returns {Object|null} 受损组件对象或null
+   */
+  getRepairComponentAtMouse(mousePos) {
+    const repairX = 20;
+    const repairY = 20;
+    const repairWidth = 300;
+    const repairAllButtonY = repairY + 60;
+    const damaged = this.repairSystem.getDamagedComponents();
+
+    let itemY = repairAllButtonY + 60;
+    const itemHeight = 80;
+
+    for (let i = 0; i < damaged.length && i < 6; i++) {
+      const item = damaged[i];
+
+      if (
+        mousePos.x >= repairX + 10 &&
+        mousePos.x <= repairX + repairWidth - 10 &&
+        mousePos.y >= itemY &&
+        mousePos.y <= itemY + itemHeight
+      ) {
+        return item;
+      }
+
+      itemY += itemHeight + 8;
+    }
+
+    return null;
+  }
+
+  /**
+   * 检查是否点击了刷新按钮
+   * @param {{x: number, y: number}} mousePos - 鼠标位置
+   * @returns {Boolean}
+   */
+  isClickingRefreshButton(mousePos) {
+    const width = this.canvas.getWidth();
+    const shopX = width - 320;
+    const shopY = 20;
+    const shopWidth = 300;
+    const refreshButtonY = shopY + 60;
+
+    return (
+      mousePos.x >= shopX + 10 &&
+      mousePos.x <= shopX + shopWidth - 10 &&
+      mousePos.y >= refreshButtonY &&
+      mousePos.y <= refreshButtonY + 35
+    );
+  }
+
+  /**
+   * 获取鼠标位置下的商品
+   * @param {{x: number, y: number}} mousePos - 鼠标位置
+   * @returns {Object|null} 商品对象或null
+   */
+  getShopItemAtMouse(mousePos) {
+    const width = this.canvas.getWidth();
+    const shopX = width - 320;
+    const shopY = 20;
+    const shopWidth = 300;
+    const refreshButtonY = shopY + 60;
+    const items = this.shopSystem.getItems();
+
+    let itemY = refreshButtonY + 50;
+    const itemHeight = 100;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+
+      if (
+        mousePos.x >= shopX + 10 &&
+        mousePos.x <= shopX + shopWidth - 10 &&
+        mousePos.y >= itemY &&
+        mousePos.y <= itemY + itemHeight
+      ) {
+        return item;
+      }
+
+      itemY += itemHeight + 10;
+    }
+
+    return null;
   }
 
   /**
@@ -609,6 +778,9 @@ class Game {
     // 重置敌人系统
     this.enemySystem.reset();
 
+    // 设置难度（基于旅途编号）
+    this.enemySystem.setDifficulty(this.journeyNumber);
+
     // 重置各个战斗系统
     this.collisionSystem.resetStats();
     this.weaponSystem.clearProjectiles();
@@ -642,6 +814,9 @@ class Game {
     const killBonus = this.collisionSystem.stats.totalKills * 2;
     this.resources.gold += killBonus;
     console.log(`获得金币奖励: ${killBonus}`);
+
+    // 刷新商店（保留锁定的商品）
+    this.shopSystem.refreshShop(true);
 
     // 给一些测试组件（临时）
     this.addTestComponentsToInventory();
@@ -1315,6 +1490,267 @@ class Game {
     ctx.shadowBlur = 20;
     ctx.shadowColor = '#00FF00';
     ctx.fillText('[ 按 SPACE 开始旅途 ]', width / 2, height / 2 + 170);
+
+    // 渲染商店UI
+    this.renderShopUI(ctx);
+
+    // 渲染修复UI
+    this.renderRepairUI(ctx);
+
+    ctx.restore();
+  }
+
+  /**
+   * 渲染商店UI
+   * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
+   */
+  renderShopUI(ctx) {
+    const width = this.canvas.getWidth();
+    const height = this.canvas.getHeight();
+
+    // 商店面板（右侧）
+    const shopX = width - 320;
+    const shopY = 20;
+    const shopWidth = 300;
+    const shopHeight = height - 40;
+
+    ctx.save();
+    ctx.shadowBlur = 0;
+
+    // 商店背景
+    ctx.fillStyle = 'rgba(20, 20, 30, 0.9)';
+    ctx.fillRect(shopX, shopY, shopWidth, shopHeight);
+
+    // 商店边框
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(shopX, shopY, shopWidth, shopHeight);
+
+    // 商店标题
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('商店', shopX + shopWidth / 2, shopY + 30);
+
+    // 刷新按钮
+    const refreshButtonY = shopY + 60;
+    const canRefresh = this.shopSystem.canRefresh(this.resources);
+    ctx.fillStyle = canRefresh ? '#4CAF50' : '#666666';
+    ctx.fillRect(shopX + 10, refreshButtonY, shopWidth - 20, 35);
+
+    ctx.fillStyle = canRefresh ? '#FFFFFF' : '#999999';
+    ctx.font = '16px monospace';
+    ctx.fillText(`刷新 (${this.shopSystem.refreshCost} 金币)`, shopX + shopWidth / 2, refreshButtonY + 22);
+
+    // 渲染商品列表
+    const items = this.shopSystem.getItems();
+    let itemY = refreshButtonY + 50;
+
+    ctx.textAlign = 'left';
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const itemHeight = 100;
+
+      // 商品背景
+      const canBuy = this.resources.gold >= item.price;
+      ctx.fillStyle = item.locked ? 'rgba(100, 100, 50, 0.3)' : 'rgba(40, 40, 50, 0.8)';
+      ctx.fillRect(shopX + 10, itemY, shopWidth - 20, itemHeight);
+
+      // 商品边框
+      ctx.strokeStyle = canBuy ? '#00FF00' : '#666666';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(shopX + 10, itemY, shopWidth - 20, itemHeight);
+
+      // 组件类型
+      ctx.fillStyle = this.getComponentColor(item.component.type);
+      ctx.font = 'bold 18px monospace';
+      ctx.fillText(item.component.type, shopX + 20, itemY + 25);
+
+      // 品质
+      ctx.fillStyle = this.getQualityColor(item.component.quality);
+      ctx.font = '14px monospace';
+      ctx.fillText(item.component.quality.toUpperCase(), shopX + 20, itemY + 45);
+
+      // 属性
+      ctx.fillStyle = '#CCCCCC';
+      ctx.font = '12px monospace';
+      ctx.fillText(`HP: ${item.component.hp}`, shopX + 20, itemY + 65);
+
+      // 价格
+      ctx.fillStyle = canBuy ? '#FFD700' : '#999999';
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(`${item.price} 金币`, shopX + 20, itemY + 85);
+
+      // 锁定标志
+      if (item.locked) {
+        ctx.fillStyle = '#FFD700';
+        ctx.font = '20px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText('🔒', shopX + shopWidth - 20, itemY + 25);
+        ctx.textAlign = 'left';
+      }
+
+      itemY += itemHeight + 10;
+    }
+
+    // 提示信息
+    ctx.fillStyle = '#AAAAAA';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('点击商品购买', shopX + shopWidth / 2, height - 60);
+    ctx.fillText('右键锁定商品', shopX + shopWidth / 2, height - 40);
+
+    ctx.restore();
+  }
+
+  /**
+   * 获取组件类型颜色
+   * @param {String} type - 组件类型
+   * @returns {String}
+   */
+  getComponentColor(type) {
+    const colors = {
+      CORE: '#FF6B6B',
+      WEAPON: '#4ECDC4',
+      ARMOR: '#45B7D1',
+      BOOSTER: '#FFA07A'
+    };
+    return colors[type] || '#FFFFFF';
+  }
+
+  /**
+   * 获取品质颜色
+   * @param {String} quality - 品质
+   * @returns {String}
+   */
+  getQualityColor(quality) {
+    const colors = {
+      common: '#AAAAAA',
+      uncommon: '#4CAF50',
+      rare: '#2196F3',
+      epic: '#9C27B0'
+    };
+    return colors[quality] || '#FFFFFF';
+  }
+
+  /**
+   * 渲染修复UI
+   * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
+   */
+  renderRepairUI(ctx) {
+    const height = this.canvas.getHeight();
+
+    // 修复面板（左侧）
+    const repairX = 20;
+    const repairY = 20;
+    const repairWidth = 300;
+    const repairHeight = height - 40;
+
+    ctx.save();
+    ctx.shadowBlur = 0;
+
+    // 修复面板背景
+    ctx.fillStyle = 'rgba(30, 20, 20, 0.9)';
+    ctx.fillRect(repairX, repairY, repairWidth, repairHeight);
+
+    // 修复面板边框
+    ctx.strokeStyle = '#4CAF50';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(repairX, repairY, repairWidth, repairHeight);
+
+    // 修复标题
+    ctx.fillStyle = '#4CAF50';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('修复站', repairX + repairWidth / 2, repairY + 30);
+
+    // 获取受损组件
+    const damaged = this.repairSystem.getDamagedComponents();
+    const stats = this.repairSystem.getStats();
+
+    // 一键修复按钮
+    const repairAllButtonY = repairY + 60;
+    const canRepairAll = this.resources.blue >= stats.totalRepairCost && damaged.length > 0;
+    ctx.fillStyle = canRepairAll ? '#4CAF50' : '#666666';
+    ctx.fillRect(repairX + 10, repairAllButtonY, repairWidth - 20, 40);
+
+    ctx.fillStyle = canRepairAll ? '#FFFFFF' : '#999999';
+    ctx.font = '16px monospace';
+    ctx.fillText(
+      `一键修复 (${Math.floor(stats.totalRepairCost)} 建材)`,
+      repairX + repairWidth / 2,
+      repairAllButtonY + 25
+    );
+
+    // 受损组件列表
+    let itemY = repairAllButtonY + 60;
+
+    if (damaged.length === 0) {
+      // 没有受损组件
+      ctx.fillStyle = '#AAAAAA';
+      ctx.font = '18px monospace';
+      ctx.fillText('所有组件完好', repairX + repairWidth / 2, itemY + 50);
+    } else {
+      ctx.textAlign = 'left';
+      for (let i = 0; i < damaged.length && i < 6; i++) { // 最多显示6个
+        const item = damaged[i];
+        const itemHeight = 80;
+
+        // 组件背景
+        const canRepair = this.resources.blue >= item.cost;
+        ctx.fillStyle = 'rgba(50, 40, 40, 0.8)';
+        ctx.fillRect(repairX + 10, itemY, repairWidth - 20, itemHeight);
+
+        // 组件边框
+        ctx.strokeStyle = canRepair ? '#4CAF50' : '#666666';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(repairX + 10, itemY, repairWidth - 20, itemHeight);
+
+        // 组件类型
+        ctx.fillStyle = this.getComponentColor(item.component.type);
+        ctx.font = 'bold 16px monospace';
+        ctx.fillText(item.component.type, repairX + 20, itemY + 22);
+
+        // HP信息
+        const hpPercent = (item.component.stats.hp / item.component.stats.maxHp) * 100;
+        ctx.fillStyle = hpPercent < 30 ? '#FF6666' : (hpPercent < 60 ? '#FFAA00' : '#FFFF00');
+        ctx.font = '14px monospace';
+        ctx.fillText(
+          `HP: ${Math.floor(item.component.stats.hp)}/${item.component.stats.maxHp} (${Math.floor(hpPercent)}%)`,
+          repairX + 20,
+          itemY + 42
+        );
+
+        // HP条
+        const barX = repairX + 20;
+        const barY = itemY + 50;
+        const barWidth = repairWidth - 40;
+        const barHeight = 6;
+
+        // 背景（灰色）
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        // 当前HP（绿色）
+        ctx.fillStyle = hpPercent < 30 ? '#FF0000' : (hpPercent < 60 ? '#FFA500' : '#00FF00');
+        ctx.fillRect(barX, barY, barWidth * (hpPercent / 100), barHeight);
+
+        // 修复成本
+        ctx.fillStyle = canRepair ? '#4CAF50' : '#999999';
+        ctx.font = 'bold 14px monospace';
+        ctx.fillText(`修复: ${item.cost} 建材`, repairX + 20, itemY + 70);
+
+        itemY += itemHeight + 8;
+      }
+
+      // 如果还有更多受损组件
+      if (damaged.length > 6) {
+        ctx.fillStyle = '#AAAAAA';
+        ctx.font = '14px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`...还有 ${damaged.length - 6} 个受损组件`, repairX + repairWidth / 2, itemY);
+      }
+    }
 
     ctx.restore();
   }

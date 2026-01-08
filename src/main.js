@@ -778,7 +778,8 @@ class Game {
       this.resources,
       this.damageNumbers,
       this.particleSystem,
-      this.enemySystem  // 传递 enemySystem 以正确处理敌人死亡
+      this.enemySystem,  // 传递 enemySystem 以正确处理敌人死亡
+      this.levelSystem   // 传递 levelSystem 以给予XP
     );
 
     // 碰撞检测：敌人-组件
@@ -1171,11 +1172,14 @@ class Game {
     ctx.textAlign = 'right';
     ctx.fillText('v0.15', width - 20, height - 20);
 
-    // 绘制距离进度条
-    this.renderDistanceProgress();
+    // 只在旅途状态显示距离进度条和经验值条
+    if (this.gameState === 'JOURNEY') {
+      // 绘制距离进度条
+      this.renderDistanceProgress();
 
-    // 绘制经验值条
-    this.renderXPBar();
+      // 绘制经验值条
+      this.renderXPBar();
+    }
 
     // 如果正在显示升级奖励UI，渲染三选一界面
     if (this.levelSystem.isShowingRewardUI()) {

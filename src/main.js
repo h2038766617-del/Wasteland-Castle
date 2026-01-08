@@ -1580,11 +1580,11 @@ class Game {
     const width = this.canvas.getWidth();
     const height = this.canvas.getHeight();
 
-    // 商店面板（右侧）
+    // 商店面板（右侧，为底部inventory留出空间）
     const shopX = width - 320;
     const shopY = 20;
     const shopWidth = 300;
-    const shopHeight = height - 40;
+    const shopHeight = height - 140; // 留出120px给inventory (100px) + 间距
 
     ctx.save();
     ctx.shadowBlur = 0;
@@ -1712,11 +1712,11 @@ class Game {
   renderRepairUI(ctx) {
     const height = this.canvas.getHeight();
 
-    // 修复面板（左侧）
+    // 修复面板（左侧，为底部inventory留出空间）
     const repairX = 20;
     const repairY = 20;
     const repairWidth = 300;
-    const repairHeight = height - 40;
+    const repairHeight = height - 140; // 留出120px给inventory (100px) + 间距
 
     ctx.save();
     ctx.shadowBlur = 0;

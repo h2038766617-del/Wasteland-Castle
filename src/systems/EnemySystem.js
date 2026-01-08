@@ -54,7 +54,8 @@ export class EnemySystem {
         damage: 10,
         moveSpeed: 30,
         rewardRed: 5,
-        rewardGold: 1
+        rewardGold: 1,
+        rewardXP: 10
       },
       fast_runner: {
         hp: 25,
@@ -62,7 +63,8 @@ export class EnemySystem {
         damage: 5,
         moveSpeed: 60,
         rewardRed: 3,
-        rewardGold: 2
+        rewardGold: 2,
+        rewardXP: 8
       },
       heavy_tank: {
         hp: 120,
@@ -70,7 +72,8 @@ export class EnemySystem {
         damage: 20,
         moveSpeed: 15,
         rewardRed: 10,
-        rewardGold: 5
+        rewardGold: 5,
+        rewardXP: 30
       }
     };
 
@@ -220,7 +223,8 @@ export class EnemySystem {
       damage: Math.floor(config.damage * this.difficultyMultiplier),
       moveSpeed: config.moveSpeed * (1 + (this.difficultyMultiplier - 1) * 0.5), // 移速增长减半
       rewardRed: Math.floor(config.rewardRed * this.difficultyMultiplier),
-      rewardGold: Math.floor(config.rewardGold * this.difficultyMultiplier)
+      rewardGold: Math.floor(config.rewardGold * this.difficultyMultiplier),
+      rewardXP: Math.floor(config.rewardXP * this.difficultyMultiplier) // XP也随难度提升
     };
 
     // 随机生成位置（屏幕边缘）

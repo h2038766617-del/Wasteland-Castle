@@ -9,7 +9,6 @@
  */
 
 import Component from '../entities/Component.js';
-import { COMPONENT_TYPES } from '../config/Constants.js';
 
 export class ComponentFactory {
   /**

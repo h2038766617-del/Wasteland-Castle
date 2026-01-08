@@ -23,6 +23,7 @@ import { ParticleSystem } from './systems/ParticleSystem.js';
 import { DragSystem } from './ui/DragSystem.js';
 import { ShopSystem } from './systems/ShopSystem.js';
 import { RepairSystem } from './systems/RepairSystem.js';
+import { LevelSystem } from './systems/LevelSystem.js';
 import ObjectPool from './systems/ObjectPool.js';
 import Component from './entities/Component.js';
 import Projectile from './entities/Projectile.js';
@@ -160,6 +161,9 @@ class Game {
 
     // 初始化修复系统
     this.repairSystem = new RepairSystem(this.gridManager);
+
+    // 初始化等级系统
+    this.levelSystem = new LevelSystem();
 
     // 添加测试组件到仓库
     this.addTestComponentsToInventory();
@@ -324,6 +328,22 @@ class Game {
 
     // 鼠标按下
     window.addEventListener('mousedown', (e) => {
+      // 优先处理升级奖励选择
+      if (this.levelSystem.isShowingRewardUI() && e.button === 0) { // 左键
+        const choice = this.getRewardChoiceAtMouse(this.mousePos);
+        if (choice !== -1) {
+          const selectedComponent = this.levelSystem.selectReward(choice);
+          if (selectedComponent) {
+            // 添加到仓库
+            this.dragSystem.addToInventory(selectedComponent);
+            console.log(`选择了奖励: ${selectedComponent.type} (${selectedComponent.quality})`);
+            // 恢复游戏
+            this.isPaused = false;
+          }
+        }
+        return;
+      }
+
       // 在安全屋状态，检查商店和修复交互
       if (this.gameState === 'SAFEHOUSE' && e.button === 0) { // 左键
         // 检查一键修复按钮
@@ -447,6 +467,38 @@ class Game {
         this.showHelp = !this.showHelp;
       }
     });
+  }
+
+  /**
+   * 获取鼠标点击的奖励选择
+   * @param {{x: number, y: number}} mousePos - 鼠标位置
+   * @returns {Number} 1, 2, 3 或 -1（未点击）
+   */
+  getRewardChoiceAtMouse(mousePos) {
+    const width = this.canvas.getWidth();
+    const height = this.canvas.getHeight();
+
+    const cardWidth = 280;
+    const cardHeight = 350;
+    const cardSpacing = 30;
+    const totalWidth = cardWidth * 3 + cardSpacing * 2;
+    const startX = (width - totalWidth) / 2;
+    const cardY = height / 2 - 50;
+
+    for (let i = 0; i < 3; i++) {
+      const cardX = startX + i * (cardWidth + cardSpacing);
+
+      if (
+        mousePos.x >= cardX &&
+        mousePos.x <= cardX + cardWidth &&
+        mousePos.y >= cardY &&
+        mousePos.y <= cardY + cardHeight
+      ) {
+        return i + 1; // 返回1, 2, 或3
+      }
+    }
+
+    return -1; // 未点击任何卡片
   }
 
   /**
@@ -682,6 +734,14 @@ class Game {
         // 给予奖励
         this.resources.red += target.rewardRed;
         this.resources.gold += target.rewardGold;
+
+        // 给予经验值并检查升级
+        const leveledUp = this.levelSystem.addXP(target.rewardXP || 10);
+        if (leveledUp) {
+          // 升级了！暂停游戏并显示三选一UI
+          this.isPaused = true;
+          console.log('升级！暂停游戏显示奖励选择');
+        }
 
         // 创建死亡粒子效果
         this.particleSystem.createExplosion(
@@ -1113,6 +1173,14 @@ class Game {
 
     // 绘制距离进度条
     this.renderDistanceProgress();
+
+    // 绘制经验值条
+    this.renderXPBar();
+
+    // 如果正在显示升级奖励UI，渲染三选一界面
+    if (this.levelSystem.isShowingRewardUI()) {
+      this.renderLevelUpRewards();
+    }
 
     ctx.restore();
   }
@@ -1751,6 +1819,173 @@ class Game {
         ctx.fillText(`...还有 ${damaged.length - 6} 个受损组件`, repairX + repairWidth / 2, itemY);
       }
     }
+
+    ctx.restore();
+  }
+
+  /**
+   * 渲染经验值条
+   */
+  renderXPBar() {
+    const ctx = this.ctx;
+    const width = this.canvas.getWidth();
+    const stats = this.levelSystem.getStats();
+
+    ctx.save();
+
+    // XP条位置（顶部中央下方）
+    const barX = width / 2 - 200;
+    const barY = 100;
+    const barWidth = 400;
+    const barHeight = 20;
+
+    // 背景（深色）
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(barX - 5, barY - 5, barWidth + 10, barHeight + 10);
+
+    // 边框
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX - 5, barY - 5, barWidth + 10, barHeight + 10);
+
+    // 经验值条背景（灰色）
+    ctx.fillStyle = '#333333';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+
+    // 当前经验值（金色）
+    const xpPercent = stats.xpPercentage;
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(barX, barY, barWidth * xpPercent, barHeight);
+
+    // 文本信息
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(
+      `Level ${stats.currentLevel}  -  ${Math.floor(stats.currentXP)}/${stats.xpToNextLevel} XP`,
+      barX + barWidth / 2,
+      barY + barHeight / 2
+    );
+
+    ctx.restore();
+  }
+
+  /**
+   * 渲染升级奖励UI（三选一）
+   */
+  renderLevelUpRewards() {
+    const ctx = this.ctx;
+    const width = this.canvas.getWidth();
+    const height = this.canvas.getHeight();
+    const rewards = this.levelSystem.getPendingRewards();
+
+    if (!rewards) {
+      return;
+    }
+
+    ctx.save();
+
+    // 半透明黑色遮罩
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(0, 0, width, height);
+
+    // 标题
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 60px monospace';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#000000';
+    ctx.shadowBlur = 20;
+    ctx.fillText('升级！', width / 2, height / 2 - 200);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '28px monospace';
+    ctx.fillText('选择一个组件奖励', width / 2, height / 2 - 140);
+
+    // 三个奖励选项
+    const cardWidth = 280;
+    const cardHeight = 350;
+    const cardSpacing = 30;
+    const totalWidth = cardWidth * 3 + cardSpacing * 2;
+    const startX = (width - totalWidth) / 2;
+    const cardY = height / 2 - 50;
+
+    const rewardComponents = [rewards.component1, rewards.component2, rewards.component3];
+
+    for (let i = 0; i < 3; i++) {
+      const component = rewardComponents[i];
+      const cardX = startX + i * (cardWidth + cardSpacing);
+
+      // 卡片背景
+      ctx.fillStyle = 'rgba(30, 30, 40, 0.9)';
+      ctx.fillRect(cardX, cardY, cardWidth, cardHeight);
+
+      // 卡片边框（品质颜色）
+      ctx.strokeStyle = this.getQualityColor(component.quality);
+      ctx.lineWidth = 4;
+      ctx.strokeRect(cardX, cardY, cardWidth, cardHeight);
+
+      // 鼠标悬停高亮
+      const mouseInCard =
+        this.mousePos.x >= cardX &&
+        this.mousePos.x <= cardX + cardWidth &&
+        this.mousePos.y >= cardY &&
+        this.mousePos.y <= cardY + cardHeight;
+
+      if (mouseInCard) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(cardX, cardY, cardWidth, cardHeight);
+      }
+
+      // 组件类型
+      ctx.fillStyle = this.getComponentColor(component.type);
+      ctx.font = 'bold 32px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(component.type, cardX + cardWidth / 2, cardY + 60);
+
+      // 品质
+      ctx.fillStyle = this.getQualityColor(component.quality);
+      ctx.font = 'bold 20px monospace';
+      ctx.fillText(component.quality.toUpperCase(), cardX + cardWidth / 2, cardY + 100);
+
+      // 属性
+      ctx.fillStyle = '#CCCCCC';
+      ctx.font = '16px monospace';
+      ctx.textAlign = 'left';
+      let attrY = cardY + 140;
+
+      ctx.fillText(`HP: ${component.stats.hp}`, cardX + 20, attrY);
+      attrY += 25;
+
+      if (component.type === 'WEAPON' && component.stats.damage) {
+        ctx.fillText(`攻击: ${component.stats.damage}`, cardX + 20, attrY);
+        attrY += 25;
+        ctx.fillText(`射程: ${component.stats.range}`, cardX + 20, attrY);
+        attrY += 25;
+      }
+
+      if (component.type === 'ARMOR' && component.stats.defense) {
+        ctx.fillText(`防御: ${component.stats.defense}`, cardX + 20, attrY);
+        attrY += 25;
+      }
+
+      if (component.type === 'BOOSTER' && component.stats.buffValue) {
+        ctx.fillText(`增益: +${Math.floor(component.stats.buffValue * 100)}%`, cardX + 20, attrY);
+        attrY += 25;
+      }
+
+      // 选择提示
+      ctx.fillStyle = mouseInCard ? '#00FF00' : '#666666';
+      ctx.font = 'bold 18px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('[ 点击选择 ]', cardX + cardWidth / 2, cardY + cardHeight - 30);
+    }
+
+    // 提示信息
+    ctx.fillStyle = '#AAAAAA';
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('选择后组件将添加到仓库', width / 2, height - 80);
 
     ctx.restore();
   }

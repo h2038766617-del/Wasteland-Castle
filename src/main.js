@@ -878,9 +878,6 @@ class Game {
 
     // 刷新商店（保留锁定的商品）
     this.shopSystem.refreshShop(true);
-
-    // 给一些测试组件（临时）
-    this.addTestComponentsToInventory();
   }
 
   /**
@@ -960,6 +957,11 @@ class Game {
 
     // 渲染拖拽预览（最上层）
     this.dragSystem.renderPreview(this.ctx);
+
+    // 渲染升级奖励UI（全屏遮罩，在仓库和拖拽之上）
+    if (this.levelSystem.isShowingRewardUI()) {
+      this.renderLevelUpRewards();
+    }
 
     // 渲染游戏结束画面（最最顶层）
     if (this.isGameOver) {
@@ -1179,11 +1181,6 @@ class Game {
 
       // 绘制经验值条
       this.renderXPBar();
-    }
-
-    // 如果正在显示升级奖励UI，渲染三选一界面
-    if (this.levelSystem.isShowingRewardUI()) {
-      this.renderLevelUpRewards();
     }
 
     ctx.restore();
@@ -2129,9 +2126,13 @@ class Game {
     this.obstacleSystem.reset();
     this.safeHouseSystem.reset();
     this.dragSystem.reset();
+    this.levelSystem.reset();
 
     // 重新初始化安全屋旅程
     this.safeHouseSystem.initJourney();
+
+    // 刷新商店
+    this.shopSystem.refreshShop(false);
 
     // 重新添加测试组件到仓库
     this.addTestComponentsToInventory();

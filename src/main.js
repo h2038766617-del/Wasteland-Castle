@@ -778,7 +778,8 @@ class Game {
       this.resources,
       this.damageNumbers,
       this.particleSystem,
-      this.enemySystem  // 传递 enemySystem 以正确处理敌人死亡
+      this.enemySystem,  // 传递 enemySystem 以正确处理敌人死亡
+      this.levelSystem   // 传递 levelSystem 以给予XP
     );
 
     // 碰撞检测：敌人-组件
@@ -877,9 +878,6 @@ class Game {
 
     // 刷新商店（保留锁定的商品）
     this.shopSystem.refreshShop(true);
-
-    // 给一些测试组件（临时）
-    this.addTestComponentsToInventory();
   }
 
   /**
@@ -959,6 +957,11 @@ class Game {
 
     // 渲染拖拽预览（最上层）
     this.dragSystem.renderPreview(this.ctx);
+
+    // 渲染升级奖励UI（全屏遮罩，在仓库和拖拽之上）
+    if (this.levelSystem.isShowingRewardUI()) {
+      this.renderLevelUpRewards();
+    }
 
     // 渲染游戏结束画面（最最顶层）
     if (this.isGameOver) {
@@ -1171,15 +1174,13 @@ class Game {
     ctx.textAlign = 'right';
     ctx.fillText('v0.15', width - 20, height - 20);
 
-    // 绘制距离进度条
-    this.renderDistanceProgress();
+    // 只在旅途状态显示距离进度条和经验值条
+    if (this.gameState === 'JOURNEY') {
+      // 绘制距离进度条
+      this.renderDistanceProgress();
 
-    // 绘制经验值条
-    this.renderXPBar();
-
-    // 如果正在显示升级奖励UI，渲染三选一界面
-    if (this.levelSystem.isShowingRewardUI()) {
-      this.renderLevelUpRewards();
+      // 绘制经验值条
+      this.renderXPBar();
     }
 
     ctx.restore();
@@ -1576,11 +1577,11 @@ class Game {
     const width = this.canvas.getWidth();
     const height = this.canvas.getHeight();
 
-    // 商店面板（右侧）
+    // 商店面板（右侧，为底部inventory留出空间）
     const shopX = width - 320;
     const shopY = 20;
     const shopWidth = 300;
-    const shopHeight = height - 40;
+    const shopHeight = height - 140; // 留出120px给inventory (100px) + 间距
 
     ctx.save();
     ctx.shadowBlur = 0;
@@ -1708,11 +1709,11 @@ class Game {
   renderRepairUI(ctx) {
     const height = this.canvas.getHeight();
 
-    // 修复面板（左侧）
+    // 修复面板（左侧，为底部inventory留出空间）
     const repairX = 20;
     const repairY = 20;
     const repairWidth = 300;
-    const repairHeight = height - 40;
+    const repairHeight = height - 140; // 留出120px给inventory (100px) + 间距
 
     ctx.save();
     ctx.shadowBlur = 0;
@@ -2125,9 +2126,13 @@ class Game {
     this.obstacleSystem.reset();
     this.safeHouseSystem.reset();
     this.dragSystem.reset();
+    this.levelSystem.reset();
 
     // 重新初始化安全屋旅程
     this.safeHouseSystem.initJourney();
+
+    // 刷新商店
+    this.shopSystem.refreshShop(false);
 
     // 重新添加测试组件到仓库
     this.addTestComponentsToInventory();

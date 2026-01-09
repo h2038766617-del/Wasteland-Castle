@@ -731,31 +731,14 @@ class Game {
 
       // 检查敌人是否死亡
       if (target.hp <= 0) {
-        // 给予奖励
-        this.resources.red += target.rewardRed;
-        this.resources.gold += target.rewardGold;
-
-        // 给予经验值并检查升级
-        const leveledUp = this.levelSystem.addXP(target.rewardXP || 10);
-        if (leveledUp) {
-          // 升级了！暂停游戏并显示三选一UI
-          this.isPaused = true;
-          console.log('升级！暂停游戏显示奖励选择');
-        }
-
-        // 创建死亡粒子效果
-        this.particleSystem.createExplosion(
-          target.position.x,
-          target.position.y,
-          '#FF4444',
-          15
+        // 统一使用CollisionSystem处理敌人死亡（资源、XP、粒子效果、统计）
+        this.collisionSystem.handleEnemyDeath(
+          target,
+          this.resources,
+          this.particleSystem,
+          this.enemySystem,
+          this.levelSystem
         );
-
-        // 归还到对象池
-        this.enemySystem.onEnemyDeath(target);
-
-        // 更新统计
-        this.collisionSystem.stats.totalKills++;
       }
     }
 
@@ -781,6 +764,12 @@ class Game {
       this.enemySystem,  // 传递 enemySystem 以正确处理敌人死亡
       this.levelSystem   // 传递 levelSystem 以给予XP
     );
+
+    // 检查是否升级（无论光标击杀还是武器击杀）
+    if (this.levelSystem.isShowingRewardUI() && !this.isPaused) {
+      this.isPaused = true;
+      console.log('升级！暂停游戏显示奖励选择');
+    }
 
     // 碰撞检测：敌人-组件
     const components = this.gridManager.getAllComponents();
@@ -848,6 +837,7 @@ class Game {
     this.scrollSystem.reset();
     this.resourceSystem.reset();
     this.obstacleSystem.reset();
+    this.safeHouseSystem.initJourney(); // 重新生成旅途中的安全屋
 
     // 清空视觉效果
     this.damageNumbers = [];

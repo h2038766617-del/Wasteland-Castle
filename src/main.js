@@ -399,7 +399,7 @@ class Game {
       }
     });
 
-    // 鼠标右键 - 锁定商品
+    // 鼠标右键 - 锁定商品 / 拆卸组件
     window.addEventListener('contextmenu', (e) => {
       e.preventDefault();
 
@@ -409,6 +409,31 @@ class Game {
         if (clickedItem) {
           this.shopSystem.toggleLock(clickedItem.id);
           console.log(`商品 ${clickedItem.locked ? '已解锁' : '已锁定'}`);
+          return;
+        }
+      }
+
+      // 右键点击网格组件 - 拆卸回仓库
+      const gridPos = this.gridManager.screenToGrid(this.mousePos.x, this.mousePos.y);
+      if (gridPos) {
+        const component = this.gridManager.getComponentAt(gridPos.col, gridPos.row);
+        if (component) {
+          // 不允许拆卸核心组件
+          if (component.type === 'CORE') {
+            console.warn('核心组件无法拆卸');
+            return;
+          }
+
+          // 从网格移除
+          this.gridManager.removeComponent(component);
+
+          // 添加回仓库
+          this.dragSystem.addToInventory(component);
+
+          // 重新计算邻接加成
+          this.buffSystem.recalculateBuffs(this.gridManager);
+
+          console.log(`组件已拆卸回仓库: ${component.type}`);
         }
       }
     });
@@ -1442,6 +1467,11 @@ class Game {
       '● 挖掘障碍：悬停在障碍物上进行挖掘',
       '● 自动战斗：炮塔自动攻击敌人',
       '',
+      '【组件拼装】（仅在安全屋）',
+      '● 左键拖拽：仓库组件→网格拼装',
+      '● 右键拆卸：网格组件→回到仓库',
+      '● 核心组件：固定无法拆卸',
+      '',
       '【波次系统】',
       '● 准备期：8秒安全时间采集资源',
       '● 战斗期：消灭所有敌人完成波次',
@@ -1523,8 +1553,8 @@ class Game {
     ctx.fillStyle = '#AAAAAA';
     ctx.font = '22px monospace';
     const instructions = [
-      '[ 拖拽组件到网格拼装载具 ]',
-      '[ 调整布局优化邻接加成 ]',
+      '[ 左键拖拽组件到网格拼装载具 ]',
+      '[ 右键点击网格组件拆卸回仓库 ]',
       '[ 准备好后按 SPACE 出发 ]'
     ];
 

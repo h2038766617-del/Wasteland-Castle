@@ -1550,6 +1550,12 @@ class Game {
     ctx.shadowColor = '#00FF00';
     ctx.fillText('[ 按 SPACE 开始旅途 ]', width / 2, height / 2 + 170);
 
+    // 帮助提示
+    ctx.fillStyle = '#AAAAAA';
+    ctx.font = '20px monospace';
+    ctx.shadowBlur = 0;
+    ctx.fillText('[ 按 H 查看帮助 ]', width / 2, height / 2 + 210);
+
     // 渲染商店UI
     this.renderShopUI(ctx);
 

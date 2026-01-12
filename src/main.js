@@ -72,7 +72,7 @@ class Game {
     this.resources = {
       red: 200,   // 弹药/能源（初始值）
       blue: 100,   // 建材/矿石
-      gold: 50     // 金币/芯片
+      gold: 150    // 金币/芯片（从50提升到150，确保玩家能购买多个商品）
     };
 
     // 计算载具锚定位置（屏幕左侧 1/3）
@@ -158,6 +158,7 @@ class Game {
     // 初始化商店系统
     this.shopSystem = new ShopSystem();
     this.shopSystem.refreshShop(false); // 初始化商店商品
+    console.log(`[初始化] 商店系统已创建，商品数量: ${this.shopSystem.getItems().length}`);
 
     // 初始化修复系统
     this.repairSystem = new RepairSystem(this.gridManager);
@@ -346,6 +347,7 @@ class Game {
 
       // 在安全屋状态，检查商店和修复交互
       if (this.gameState === 'SAFEHOUSE' && e.button === 0) { // 左键
+        console.log(`[调试] SAFEHOUSE状态下的左键点击`);
         // 检查一键修复按钮
         if (this.isClickingRepairAllButton(this.mousePos)) {
           const result = this.repairSystem.repairAll(this.resources);
@@ -374,11 +376,18 @@ class Game {
 
         // 检查商品点击
         const clickedItem = this.getShopItemAtMouse(this.mousePos);
+        console.log(`[调试] 鼠标点击位置: (${this.mousePos.x}, ${this.mousePos.y}), 点击的商品:`, clickedItem);
         if (clickedItem) {
+          console.log(`[调试] 尝试购买商品: ${clickedItem.component.type}, 价格: ${clickedItem.price}, 当前金币: ${this.resources.gold}`);
           const component = this.shopSystem.purchase(clickedItem.id, this.resources);
           if (component) {
             this.dragSystem.addToInventory(component);
-            console.log('购买成功，组件已添加到仓库');
+            console.log('✅ 购买成功！');
+            console.log(`   - 商品: ${component.type} (${component.quality})`);
+            console.log(`   - 已添加到底部仓库`);
+            console.log(`   - 剩余金币: ${this.resources.gold}`);
+          } else {
+            console.log('❌ 购买失败 - 金币不足或商品不存在');
           }
           return;
         }
@@ -589,6 +598,13 @@ class Game {
     let itemY = refreshButtonY + 50;
     const itemHeight = 100;
 
+    // 调试：检查鼠标是否在商店区域
+    const inShopArea = mousePos.x >= shopX && mousePos.x <= shopX + shopWidth &&
+                       mousePos.y >= shopY && mousePos.y <= shopY + (this.canvas.getHeight() - 140);
+    if (inShopArea) {
+      console.log(`[调试] 鼠标在商店区域内，检查商品...`);
+    }
+
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
 
@@ -598,10 +614,15 @@ class Game {
         mousePos.y >= itemY &&
         mousePos.y <= itemY + itemHeight
       ) {
+        console.log(`[调试] 找到商品 #${i}: ${item.component.type}`);
         return item;
       }
 
       itemY += itemHeight + 10;
+    }
+
+    if (inShopArea) {
+      console.log(`[调试] 在商店区域内但没有点击到任何商品`);
     }
 
     return null;
@@ -1583,6 +1604,13 @@ class Game {
     const shopWidth = 300;
     const shopHeight = height - 140; // 留出120px给inventory (100px) + 间距
 
+    // 调试：每10秒打印一次商店状态
+    const now = Date.now();
+    if (!this._lastShopDebugTime || now - this._lastShopDebugTime > 10000) {
+      this._lastShopDebugTime = now;
+      console.log(`[调试] 渲染商店UI - 商品数量: ${this.shopSystem.getItems().length}, 金币: ${this.resources.gold}`);
+    }
+
     ctx.save();
     ctx.shadowBlur = 0;
 
@@ -1625,9 +1653,9 @@ class Game {
       ctx.fillStyle = item.locked ? 'rgba(100, 100, 50, 0.3)' : 'rgba(40, 40, 50, 0.8)';
       ctx.fillRect(shopX + 10, itemY, shopWidth - 20, itemHeight);
 
-      // 商品边框
-      ctx.strokeStyle = canBuy ? '#00FF00' : '#666666';
-      ctx.lineWidth = 1;
+      // 商品边框（更明显的颜色区分）
+      ctx.strokeStyle = canBuy ? '#00FF00' : '#FF0000';
+      ctx.lineWidth = canBuy ? 2 : 1;
       ctx.strokeRect(shopX + 10, itemY, shopWidth - 20, itemHeight);
 
       // 组件类型
@@ -1649,6 +1677,13 @@ class Game {
       ctx.fillStyle = canBuy ? '#FFD700' : '#999999';
       ctx.font = 'bold 16px monospace';
       ctx.fillText(`${item.price} 金币`, shopX + 20, itemY + 85);
+
+      // 金币不足提示
+      if (!canBuy) {
+        ctx.fillStyle = '#FF6666';
+        ctx.font = '12px monospace';
+        ctx.fillText('(金币不足)', shopX + 20 + 120, itemY + 85);
+      }
 
       // 锁定标志
       if (item.locked) {

@@ -27,14 +27,14 @@ export class ShopSystem {
     // 商店配置
     this.minItems = 3;
     this.maxItems = 5;
-    this.refreshCost = 10; // 刷新花费金币
+    this.refreshCost = 5; // 刷新花费金币（从10降低到5，防止死锁）
 
-    // 组件价格表（基础价格）
+    // 组件价格表（基础价格）- 降低价格使其更易购买
     this.componentBasePrices = {
-      CORE: 100,
-      WEAPON: 30,
-      ARMOR: 25,
-      BOOSTER: 40
+      CORE: 60,    // 从100降为60
+      WEAPON: 20,  // 从30降为20
+      ARMOR: 15,   // 从25降为15
+      BOOSTER: 25  // 从40降为25
     };
 
     // 品质价格倍数

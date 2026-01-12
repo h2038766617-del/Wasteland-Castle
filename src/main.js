@@ -640,6 +640,13 @@ class Game {
       loadingElement.classList.add('hidden');
     }
 
+    // 🎯 初始状态是SAFEHOUSE，显示系统光标用于点击UI
+    const canvas = document.getElementById('gameCanvas');
+    if (canvas) {
+      canvas.style.cursor = 'default';
+      console.log('[光标] 游戏启动，当前状态: SAFEHOUSE，已显示系统光标');
+    }
+
     // 显示调试信息（如果启用）
     if (DEBUG.SHOW_FPS) {
       const debugElement = document.getElementById('debug');
@@ -857,6 +864,13 @@ class Game {
     this.gameState = 'JOURNEY';
     this.journeyNumber++;
 
+    // 🎯 隐藏系统光标，使用游戏内自定义光标
+    const canvas = document.getElementById('gameCanvas');
+    if (canvas) {
+      canvas.style.cursor = 'none';
+      console.log('[光标] 已切换到游戏内自定义光标');
+    }
+
     // 重置敌人系统
     this.enemySystem.reset();
 
@@ -891,6 +905,13 @@ class Game {
     console.log(`总伤害: ${this.collisionSystem.stats.totalDamage}`);
 
     this.gameState = 'SAFEHOUSE';
+
+    // 🎯 显示系统光标，用于点击UI（商店、修复）
+    const canvas = document.getElementById('gameCanvas');
+    if (canvas) {
+      canvas.style.cursor = 'default';
+      console.log('[光标] 已切换到系统光标，可以点击UI');
+    }
 
     // 奖励资源（根据表现）
     const killBonus = this.collisionSystem.stats.totalKills * 2;
@@ -2139,10 +2160,17 @@ class Game {
     this.gameState = 'SAFEHOUSE'; // 重新从安全屋开始
     this.journeyNumber = 0; // 重置旅途编号
 
+    // 🎯 显示系统光标，因为回到SAFEHOUSE状态
+    const canvas = document.getElementById('gameCanvas');
+    if (canvas) {
+      canvas.style.cursor = 'default';
+      console.log('[光标] 游戏重启，回到SAFEHOUSE，已显示系统光标');
+    }
+
     // 重置资源到初始值
     this.resources.red = 200;
     this.resources.blue = 100;
-    this.resources.gold = 50;
+    this.resources.gold = 150; // 从50提升到150，与初始化一致
 
     // 清空视觉效果
     this.damageNumbers = [];

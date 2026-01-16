@@ -10,19 +10,19 @@
 
 | 文档 | 描述 | 状态 |
 |------|------|------|
-| [README.md](../README.md) | 项目概述、快速开始 | ✅ 待创建 |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | 系统架构和代码结构 | ✅ 待创建 |
-| [DEV_GUIDE.md](./DEV_GUIDE.md) | 开发指南和规范 | ✅ 待创建 |
-| [TESTING_CHECKLIST.md](./TESTING_CHECKLIST.md) | 测试清单 | ✅ 待创建 |
-| [WORKFLOW.md](./WORKFLOW.md) | 开发工作流程 | ✅ 待创建 |
+| [README.md](../README.md) | 项目概述、快速开始 | ✅ 已完成 |
+| [GUIDING_PRINCIPLES.md](./GUIDING_PRINCIPLES.md) | 核心指导思想（项目"宪法"）| ✅ 已完成 ⭐ |
+| [DESIGN_DOC.md](./DESIGN_DOC.md) | 游戏设计文档（不涉及代码）| ✅ 已完成 |
+| [DEV_GUIDE.md](./DEV_GUIDE.md) | 开发指南和规范 | ✅ 已完成 |
+| [TESTING_CHECKLIST.md](./TESTING_CHECKLIST.md) | 测试清单 | ✅ 已完成 |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | 系统架构和代码结构 | ✅ 已完成 |
 
 ### 🎮 用户文档
 
 | 文档 | 描述 | 状态 |
 |------|------|------|
-| [USER_MANUAL.md](./USER_MANUAL.md) | 用户手册和游戏说明 | ✅ 待创建 |
 | [../README_如何运行.md](../README_如何运行.md) | 运行指南 | ✅ 已存在 |
-| [GAMEPLAY.md](./GAMEPLAY.md) | 游戏玩法和机制 | ✅ 待创建 |
+| [DESIGN_DOC.md](./DESIGN_DOC.md) | 游戏玩法和机制（设计文档）| ✅ 已完成 |
 
 ### 🔧 技术文档
 
@@ -36,8 +36,8 @@
 
 | 文档 | 描述 | 状态 |
 |------|------|------|
-| [KNOWN_ISSUES.md](./issues/KNOWN_ISSUES.md) | 已知问题汇总 | ✅ 待创建 |
-| [FIX_HISTORY.md](./issues/FIX_HISTORY.md) | 修复历史 | ✅ 待创建 |
+| [KNOWN_ISSUES.md](./issues/KNOWN_ISSUES.md) | 已知问题汇总 | ✅ 已完成 |
+| [FIX_HISTORY.md](./issues/FIX_HISTORY.md) | 修复历史 | ✅ 已完成 |
 | [../CRITICAL_FIX_CURSOR.md](../CRITICAL_FIX_CURSOR.md) | 光标修复分析 | ✅ 已存在 |
 | [../SHOP_ANALYSIS.md](../SHOP_ANALYSIS.md) | 商店系统分析 | ✅ 已存在 |
 
